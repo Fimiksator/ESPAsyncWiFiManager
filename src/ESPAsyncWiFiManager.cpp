@@ -166,19 +166,16 @@ void AsyncWiFiManager::setupConfigPortal()
   server->on("/",
              std::bind(&AsyncWiFiManager::handleRoot, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
-  server->on("/wifi",
+  server->on("/api/v2/wifi/scan",
              std::bind(&AsyncWiFiManager::handleWifi, this, std::placeholders::_1, true))
       .setFilter(ON_AP_FILTER);
-  server->on("/0wifi",
-             std::bind(&AsyncWiFiManager::handleWifi, this, std::placeholders::_1, false))
-      .setFilter(ON_AP_FILTER);
-  server->on("/wifisave",
+  server->on("/api/v2/wifi/save",
              std::bind(&AsyncWiFiManager::handleWifiSave, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
-  server->on("/i",
+  server->on("/api/v2/wifi/info",
              std::bind(&AsyncWiFiManager::handleInfo, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
-  server->on("/r",
+  server->on("/api/v2/wifi/reset",
              std::bind(&AsyncWiFiManager::handleReset, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
   server->on("/fwlink",
@@ -286,6 +283,27 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   }
 
   return startConfigPortal(apName, apPassword);
+}
+
+void AsyncWiFiManager::staModeSetup(char const *apName,
+                    char const *apPassword)
+{
+  setupApiCalls();
+  return;
+}
+
+void AsyncWiFiManager::setupApiCalls()
+{
+  server->on("/wifi",
+             std::bind(&AsyncWiFiManager::handleRootSTA, this, std::placeholders::_1));
+  server->on("/api/v2/wifi/scan",
+             std::bind(&AsyncWiFiManager::handleWifiSTA, this, std::placeholders::_1, true));
+  server->on("/api/v2/wifi/save",
+             std::bind(&AsyncWiFiManager::handleWifiSaveSTA, this, std::placeholders::_1));
+  server->on("/api/v2/wifi/info",
+             std::bind(&AsyncWiFiManager::handleInfoSTA, this, std::placeholders::_1));
+  server->on("/api/v2/wifi/reset",
+             std::bind(&AsyncWiFiManager::handleResetSTA, this, std::placeholders::_1));
 }
 
 String AsyncWiFiManager::networkListAsString()
@@ -450,6 +468,71 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
   }
 }
 
+void AsyncWiFiManager::copySSIDInfoSTA(wifi_ssid_count_t n, WiFiResult *wifiSSIDs2)
+{
+  if (n == WIFI_SCAN_FAILED)
+  {
+    DEBUG_WM(F("scanNetworks returned: WIFI_SCAN_FAILED!"));
+  }
+  else if (n == WIFI_SCAN_RUNNING)
+  {
+    DEBUG_WM(F("scanNetworks returned: WIFI_SCAN_RUNNING!"));
+  }
+  else if (n < 0)
+  {
+    DEBUG_WM(F("scanNetworks failed with unknown error code!"));
+  }
+  else if (n == 0)
+  {
+    DEBUG_WM(F("No networks found"));
+    // page += F("No networks found. Refresh to scan again.");
+  }
+  else
+  {
+    DEBUG_WM(F("Scan done"));
+  }
+
+  if (n > 0)
+  {
+    if (n > 10)
+    {
+      n = 10;
+    }
+    // WE SHOULD MOVE THIS IN PLACE ATOMICALLY
+    if (wifiSSIDs2)
+    {
+      delete[] wifiSSIDs2;
+    }
+    wifiSSIDs2 = new WiFiResult[n];
+
+    for (wifi_ssid_count_t i = 0; i < n; i++)
+    {
+      wifiSSIDs2[i].duplicate = false;
+
+      WiFi.getNetworkInfo(i,
+                          wifiSSIDs2[i].SSID,
+                          wifiSSIDs2[i].encryptionType,
+                          wifiSSIDs2[i].RSSI,
+                          wifiSSIDs2[i].BSSID,
+                          wifiSSIDs2[i].channel);
+    }
+
+    // RSSI SORT
+
+    // old sort
+    for (int i = 0; i < n; i++)
+    {
+      for (int j = i + 1; j < n; j++)
+      {
+        if (wifiSSIDs2[j].RSSI > wifiSSIDs2[i].RSSI)
+        {
+          std::swap(wifiSSIDs2[i], wifiSSIDs2[j]);
+        }
+      }
+    }
+  }
+}
+
 void AsyncWiFiManager::startConfigPortalModeless(char const *apName, char const *apPassword)
 {
   _modeless = true;
@@ -497,12 +580,16 @@ void AsyncWiFiManager::loop()
 
 void AsyncWiFiManager::setInfo()
 {
-  if (needInfo)
-  {
-    pager = infoAsString();
-    wifiStatus = WiFi.status();
-    needInfo = false;
-  }
+  pager = infoAsString();
+  wifiStatus = WiFi.status();
+  needInfo = false;
+}
+
+String AsyncWiFiManager::setInfoSTA()
+{
+  String pager2;
+  pager2 = infoAsString();
+  return pager2;
 }
 
 // anything that accesses WiFi, ESP or EEPROM goes here
@@ -684,6 +771,119 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
   return WiFi.status() == WL_CONNECTED;
 }
 
+boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *apPassword)
+{
+  // setup AP
+  WiFi.mode(WIFI_AP_STA);
+  DEBUG_WM(F("SET AP STA"));
+
+  _apName = apName;
+  _apPassword = apPassword;
+  bool connectedDuringConfigPortal = false;
+
+  // notify we entered AP mode
+  if (_apcallback != NULL)
+  {
+    _apcallback(this);
+  }
+
+  connect = false;
+  setupConfigPortal();
+  scannow = 0;
+  while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
+  {
+// DNS
+#ifndef USE_EADNS
+    dnsServer->processNextRequest();
+#endif
+    //
+    //  we should do a scan every so often here and
+    //  try to reconnect to AP while we are at it
+    //
+    if (scannow == 0 || millis() - scannow >= 10000)
+    {
+      DEBUG_WM(F("About to scan()"));
+      shouldscan = true; // since we are modal, we can scan every time
+#if defined(ESP8266)
+      // we might still be connecting, so that has to stop for scanning
+      ETS_UART_INTR_DISABLE();
+      wifi_station_disconnect();
+      ETS_UART_INTR_ENABLE();
+#else
+      WiFi.disconnect(false);
+#endif
+      scanModal();
+      if (_tryConnectDuringConfigPortal)
+      {
+        WiFi.begin(); // try to reconnect to AP
+        connectedDuringConfigPortal = true;
+      }
+      scannow = millis();
+    }
+
+    // attempts to reconnect were successful
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      // connected
+      WiFi.mode(WIFI_STA);
+      // notify that configuration has changed and any optional parameters should be saved
+      // configuraton should not be saved when just connected using stored ssid and password during config portal
+      if (!connectedDuringConfigPortal && _savecallback != NULL)
+      {
+        // TODO: check if any custom parameters actually exist, and check if they really changed maybe
+        _savecallback();
+      }
+      break;
+    }
+
+    if (connect)
+    {
+      connect = false;
+      delay(2000);
+      DEBUG_WM(F("Connecting to new AP"));
+
+      // using user-provided _ssid, _pass in place of system-stored ssid and pass
+      WiFi.persistent(true);
+      if (_tryConnectDuringConfigPortal and connectWifi(_ssid, _pass) == WL_CONNECTED)
+      {
+        WiFi.persistent(false);
+        // connected
+        WiFi.mode(WIFI_STA);
+        // notify that configuration has changed and any optional parameters should be saved
+        if (_savecallback != NULL)
+        {
+          // TODO: check if any custom parameters actually exist, and check if they really changed maybe
+          _savecallback();
+        }
+        break;
+      }
+      else
+      {
+          if(_tryConnectDuringConfigPortal)
+            DEBUG_WM(F("Failed to connect"));
+      }
+
+      if (_shouldBreakAfterConfig)
+      {
+        // flag set to exit after config after trying to connect
+        // notify that configuration has changed and any optional parameters should be saved
+        if (_savecallback != NULL)
+        {
+          // TODO: check if any custom parameters actually exist, and check if they really changed maybe
+          _savecallback();
+        }
+        break;
+      }
+    }
+    yield();
+  }
+
+  server->reset();
+  dnsServer->stop();
+
+  return WiFi.status() == WL_CONNECTED;
+}
+
 uint8_t AsyncWiFiManager::connectWifi(String ssid, String pass)
 {
   DEBUG_WM(F("Connecting as wifi client..."));
@@ -747,8 +947,55 @@ uint8_t AsyncWiFiManager::connectWifi(String ssid, String pass)
     connRes = waitForConnectResult();
   }
 #endif
-  needInfo = true;
+  DEBUG_WM(F("Setting info"));
   setInfo();
+  return connRes;
+}
+
+uint8_t AsyncWiFiManager::connectWifiSTA(String ssid, String pass)
+{
+  DEBUG_WM(F("Connecting as wifi client..."));
+
+  // check if we've got static_ip settings, if we do, use those
+  // fix for auto connect racing issue
+  //  if (WiFi.status() == WL_CONNECTED) {
+  //    DEBUG_WM("Already connected. Bailing out.");
+  //    return WL_CONNECTED;
+  //  }
+  // check if we have ssid and pass and force those, if not, try with last saved values
+  if (ssid != "")
+  {
+    WiFi.disconnect(false);
+    WiFi.begin(ssid.c_str(), pass.c_str());
+  }
+  else
+  {
+    if (WiFi.SSID().length() > 0)
+    {
+      DEBUG_WM(F("Using last saved values, should be faster"));
+      WiFi.disconnect(false);
+      WiFi.begin();
+    }
+    else
+    {
+      DEBUG_WM(F("Try to connect with saved credentials"));
+      WiFi.begin();
+    }
+  }
+
+  uint8_t connRes = waitForConnectResult();
+  DEBUG_WM(F("Connection result: "));
+  DEBUG_WM(connRes);
+  // not connected, WPS enabled, no pass - first attempt
+#ifdef NO_EXTRA_4K_HEAP
+  if (_tryWPS && connRes != WL_CONNECTED && pass == "")
+  {
+    startWPS();
+    // should be connected at the end of WPS
+    connRes = waitForConnectResult();
+  }
+#endif
+  DEBUG_WM(F("Setting info"));
   return connRes;
 }
 
@@ -908,9 +1155,32 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   page += "<h1>";
   page += _apName;
   page += "</h1>";
-  page += F("<h3>AsyncWiFiManager</h3>");
+  page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS);
   page += _customOptionsElement;
+  page += FPSTR(HTTP_END);
+
+  request->send(200, "text/html", page);
+  DEBUG_WM(F("Sent..."));
+}
+
+// handle root or redirect to captive portal
+void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
+{
+  // AJS - maybe we should set a scan when we get to the root???
+  // and only scan on demand? timer + on demand? plus a link to make it happen?
+
+  DEBUG_WM(F("Handle root"));
+
+  String page = FPSTR(WFM_HTTP_HEAD);
+  page.replace("{v}", "Options");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  //page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h3><center>Xenia WiFi Manager</center></h3>");
+  page += FPSTR(HTTP_PORTAL_OPTIONS);
+  //page += _customOptionsElement;
   page += FPSTR(HTTP_END);
 
   request->send(200, "text/html", page);
@@ -1042,6 +1312,165 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
   DEBUG_WM(F("Sent config page"));
 }
 
+// wifi config page handler
+void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean scan)
+{
+  String page = FPSTR(WFM_HTTP_HEAD);
+
+  page.replace("{v}", "Config ESP");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  //page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+
+  WiFiResult *wifiSSIDs2;
+  wifi_ssid_count_t n = WiFi.scanNetworks(false);
+
+  if (n == WIFI_SCAN_FAILED)
+  {
+    DEBUG_WM(F("scanNetworks returned: WIFI_SCAN_FAILED!"));
+  }
+  else if (n == WIFI_SCAN_RUNNING)
+  {
+    DEBUG_WM(F("scanNetworks returned: WIFI_SCAN_RUNNING!"));
+  }
+  else if (n < 0)
+  {
+    DEBUG_WM(F("scanNetworks failed with unknown error code!"));
+  }
+  else if (n == 0)
+  {
+    DEBUG_WM(F("No networks found"));
+    // page += F("No networks found. Refresh to scan again.");
+  }
+  else
+  {
+    DEBUG_WM(F("Scan done"));
+  }
+
+  if (n > 0)
+  {
+    // WE SHOULD MOVE THIS IN PLACE ATOMICALLY
+    if (wifiSSIDs2)
+    {
+      delete[] wifiSSIDs2;
+    }
+    wifiSSIDs2 = new WiFiResult[n];
+
+    for (wifi_ssid_count_t i = 0; i < n; i++)
+    {
+      wifiSSIDs2[i].duplicate = false;
+
+      WiFi.getNetworkInfo(i,
+                          wifiSSIDs2[i].SSID,
+                          wifiSSIDs2[i].encryptionType,
+                          wifiSSIDs2[i].RSSI,
+                          wifiSSIDs2[i].BSSID,
+                          wifiSSIDs2[i].channel);
+    }
+
+    // RSSI SORT
+
+    // old sort
+    for (int i = 0; i < n; i++)
+    {
+      for (int j = i + 1; j < n; j++)
+      {
+        if (wifiSSIDs2[j].RSSI > wifiSSIDs2[i].RSSI)
+        {
+          std::swap(wifiSSIDs2[i], wifiSSIDs2[j]);
+        }
+      }
+    }
+  }
+
+  String pager;
+  if (wifiSSIDCount == 0)
+  {
+    DEBUG_WM(F("No networks found"));
+    page += F("No networks found. Refresh to scan again");
+  }
+  else
+  {
+    // display networks in page
+
+    for (int i = 0; i < n; i++)
+    {
+      if (wifiSSIDs2[i].duplicate == true)
+      {
+        continue; // skip dups
+      }
+
+      unsigned int quality = getRSSIasQuality(wifiSSIDs2[i].RSSI);
+      String item = FPSTR(HTTP_ITEM);
+      String rssiQ;
+      rssiQ += quality;
+      item.replace("{v}", wifiSSIDs2[i].SSID);
+      item.replace("{r}", rssiQ);
+      if (wifiSSIDs2[i].encryptionType != WIFI_AUTH_OPEN)
+      {
+        item.replace("{i}", "l");
+      }
+      else
+      {
+        item.replace("{i}", "");
+      }
+      pager += item;
+
+    }
+
+    page += pager;
+    page += "<br/>";
+  }
+
+
+
+  page += FPSTR(HTTP_FORM_START);
+  char parLength[2];
+
+
+  // add the extra parameters to the form
+ /* for (unsigned int i = 0; i < _paramsCount; i++)
+  {
+    if (_params[i] == NULL)
+    {
+      break;
+    }
+
+    String pitem = FPSTR(HTTP_FORM_PARAM);
+    if (_params[i]->getID() != NULL)
+    {
+      pitem.replace("{i}", _params[i]->getID());
+      pitem.replace("{n}", _params[i]->getID());
+      pitem.replace("{p}", _params[i]->getPlaceholder());
+      snprintf(parLength, 2, "%d", _params[i]->getValueLength());
+      pitem.replace("{l}", parLength);
+      pitem.replace("{v}", _params[i]->getValue());
+      pitem.replace("{c}", _params[i]->getCustomHTML());
+    }
+    else
+    {
+      pitem = _params[i]->getCustomHTML();
+    }
+
+    page += pitem;
+  }*/
+
+
+  /*if (_params[0] != NULL)
+  {
+    page += "<br/>";
+  }*/
+
+  page += FPSTR(HTTP_FORM_END);
+  page += FPSTR(HTTP_SCAN_LINK);
+  page += FPSTR(HTTP_END);
+
+  request->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent config page"));
+}
+
 // handle the WLAN save form and redirect to WLAN config page again
 void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 {
@@ -1111,7 +1540,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
-  page += F("<meta http-equiv=\"refresh\" content=\"5; url=/i\">");
+  page += F("<meta http-equiv=\"refresh\" content=\"5; url=/api/v2/wifi/info\">");
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED);
   page += FPSTR(HTTP_END);
@@ -1121,6 +1550,48 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   DEBUG_WM(F("Sent wifi save page"));
 
   connect = true; // signal ready to connect/reset
+}
+
+// handle the WLAN save form and redirect to WLAN config page again
+void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
+{
+  DEBUG_WM(F("WiFi save"));
+
+  // SAVE/connect here
+  needInfo = true;
+  String _ssid2 = request->arg("s").c_str();
+  String _pass2 = request->arg("p").c_str();
+
+  WiFi.persistent(true);
+  connectWifiSTA(_ssid2, _pass2);
+
+  WiFi.persistent(false);
+  // connected
+  WiFi.mode(WIFI_STA);
+
+  String page = FPSTR(WFM_HTTP_HEAD);
+  page.replace("{v}", "Credentials Saved");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += F("<meta http-equiv=\"refresh\" content=\"5; url=/api/v2/wifi/info\">");
+  page += FPSTR(HTTP_HEAD_END);
+  page += FPSTR(HTTP_SAVED);
+  page += FPSTR(HTTP_END);
+
+  request->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent wifi save page"));
+
+  delay(200);
+
+  DEBUG_WM(F("Connected to wifi"));
+  Serial.println(WiFi.SSID());
+  DEBUG_WM(F("IP"));
+  Serial.println(WiFi.localIP().toString());
+
+  delay(200);
+
+  ESP.restart();
 }
 
 // handle the info page
@@ -1181,7 +1652,7 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
   page += _customHeadElement;
   if (connect == true)
   {
-    page += F("<meta http-equiv=\"refresh\" content=\"5; url=/i\">");
+    page += F("<meta http-equiv=\"refresh\" content=\"5; url=/api/v2/wifi/info\">");
   }
   page += FPSTR(HTTP_HEAD_END);
   page += F("<dl>");
@@ -1192,6 +1663,26 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
     page += F("</dd>");
   }
   page += pager;
+  page += FPSTR(HTTP_END);
+
+  request->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent info page"));
+}
+
+void AsyncWiFiManager::handleInfoSTA(AsyncWebServerRequest *request)
+{
+  DEBUG_WM(F("Info"));
+
+  String page = FPSTR(WFM_HTTP_HEAD);
+  page.replace("{v}", "Info");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  //page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<dl>");
+
+  page += setInfoSTA();
   page += FPSTR(HTTP_END);
 
   request->send(200, "text/html", page);
@@ -1215,13 +1706,38 @@ void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
   request->send(200, "text/html", page);
 
   DEBUG_WM(F("Sent reset page"));
-  delay(5000);
+  delay(500);
 #if defined(ESP8266)
   ESP.reset();
 #else
   ESP.restart();
 #endif
-  delay(2000);
+  delay(200);
+}
+
+// handle the reset page
+void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
+{
+  DEBUG_WM(F("Reset"));
+
+  String page = FPSTR(WFM_HTTP_HEAD);
+  page.replace("{v}", "Info");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  //page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("Module will reset in a few seconds");
+  page += FPSTR(HTTP_END);
+  request->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent reset page"));
+  delay(500);
+#if defined(ESP8266)
+  ESP.reset();
+#else
+  ESP.restart();
+#endif
+  delay(200);
 }
 
 void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)

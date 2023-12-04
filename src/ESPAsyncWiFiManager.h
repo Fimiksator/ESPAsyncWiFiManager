@@ -52,12 +52,12 @@ const char WFM_HTTP_HEAD[] PROGMEM = "<!DOCTYPE html><html lang=\"en\"><head><me
 const char HTTP_STYLE[] PROGMEM = "<style>.c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
 const char HTTP_SCRIPT[] PROGMEM = "<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>";
 const char HTTP_HEAD_END[] PROGMEM = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
-const char HTTP_PORTAL_OPTIONS[] PROGMEM = "<form action=\"/wifi\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/0wifi\" method=\"get\"><button>Configure WiFi (No Scan)</button></form><br/><form action=\"/i\" method=\"get\"><button>Info</button></form><br/><form action=\"/r\" method=\"post\"><button>Reset</button></form>";
+const char HTTP_PORTAL_OPTIONS[] PROGMEM = "<form action=\"/api/v2/wifi/scan\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/api/v2/wifi/info\" method=\"get\"><button>Info</button></form><br/><form action=\"/api/v2/wifi/reset\" method=\"post\"><button>Reset</button></form><br/><form action=\"/\" method=\"post\"><button>Xenia home</button></form>";
 const char HTTP_ITEM[] PROGMEM = "<div><a href='#p' onclick='c(this)'>{v}</a>&nbsp;<span class='q {i}'>{r}%</span></div>";
-const char HTTP_FORM_START[] PROGMEM = "<form method='get' action='wifisave'><input id='s' name='s' length=32 placeholder='SSID'><br/><input id='p' name='p' length=64 type='password' placeholder='password'><br/>";
+const char HTTP_FORM_START[] PROGMEM = "<form method='get' action='/api/v2/wifi/save'><input id='s' name='s' length=32 placeholder='SSID'><br/><input id='p' name='p' length=64 type='password' placeholder='password'><br/>";
 const char HTTP_FORM_PARAM[] PROGMEM = "<br/><input id='{i}' name='{n}' length={l} placeholder='{p}' value='{v}' {c}>";
 const char HTTP_FORM_END[] PROGMEM = "<br/><button type='submit'>save</button></form>";
-const char HTTP_SCAN_LINK[] PROGMEM = "<br/><div class=\"c\"><a href=\"/wifi\">Scan</a></div>";
+const char HTTP_SCAN_LINK[] PROGMEM = "<br/><div class=\"c\"><a href=\"/api/v2/wifi/scan\">Scan</a></div>";
 const char HTTP_SAVED[] PROGMEM = "<div>Credentials Saved<br />Trying to connect ESP to network.<br />If it fails reconnect to AP to try again</div>";
 const char HTTP_END[] PROGMEM = "</div></body></html>";
 
@@ -125,6 +125,7 @@ public:
 #endif
 
   void scan(boolean async = false);
+  void scanSTA(WiFiResult *wifiSSIDs2, wifi_ssid_count_t *wifiSSIDCount2);
   String scanModal();
   void loop();
   void safeLoop();
@@ -138,8 +139,14 @@ public:
                       unsigned long maxConnectRetries = 1,
                       unsigned long retryDelayMs = 1000);
 
+  void staModeSetup(char const *apName,
+                      char const *apPassword);
+  void setupApiCalls();
+
   // if you want to always start the config portal, without trying to connect first
   boolean startConfigPortal(char const *apName, char const *apPassword = NULL);
+  boolean startConfigPortalSTA(char const *apName, char const *apPassword);
+
   void startConfigPortalModeless(char const *apName, char const *apPassword);
 
   // get the AP name of the config portal, so it can be used in the callback
@@ -250,16 +257,25 @@ private:
 
   uint8_t status = WL_IDLE_STATUS;
   uint8_t connectWifi(String ssid, String pass);
+  uint8_t connectWifiSTA(String ssid, String pass);
   uint8_t waitForConnectResult();
   void setInfo();
+  String setInfoSTA();
   void copySSIDInfo(wifi_ssid_count_t n);
+  void copySSIDInfoSTA(wifi_ssid_count_t n, WiFiResult *wifiSSIDs2);
   String networkListAsString();
+  String networkListAsStringSTA( WiFiResult *wifiSSIDs2, wifi_ssid_count_t wifiSSIDCount2);
 
   void handleRoot(AsyncWebServerRequest *);
+  void handleRootSTA(AsyncWebServerRequest *);
   void handleWifi(AsyncWebServerRequest *, boolean scan);
+  void handleWifiSTA(AsyncWebServerRequest *, boolean scan);
   void handleWifiSave(AsyncWebServerRequest *);
+  void handleWifiSaveSTA(AsyncWebServerRequest *);
   void handleInfo(AsyncWebServerRequest *);
+  void handleInfoSTA(AsyncWebServerRequest *);
   void handleReset(AsyncWebServerRequest *);
+  void handleResetSTA(AsyncWebServerRequest *);
   void handleNotFound(AsyncWebServerRequest *);
   boolean captivePortal(AsyncWebServerRequest *);
 

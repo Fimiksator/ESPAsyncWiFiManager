@@ -178,6 +178,9 @@ void AsyncWiFiManager::setupConfigPortal()
   server->on("/api/v2/wifi/reset",
              std::bind(&AsyncWiFiManager::handleReset, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
+  server->on("/api/v2/wifi/stand_alone",
+             std::bind(&AsyncWiFiManager::handleStandAlone, this, std::placeholders::_1))
+      .setFilter(ON_AP_FILTER);
   server->on("/fwlink",
              std::bind(&AsyncWiFiManager::handleRoot, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER); // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
@@ -248,7 +251,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   DEBUG_WM(F(""));
 
   // attempt to connect; should it fail, fall back to AP
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
   {
@@ -259,6 +262,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
     {
       DEBUG_WM(F("IP Address:"));
       DEBUG_WM(WiFi.localIP());
+      DEBUG_WM(WiFi.SSID().c_str());
       // connected
       return true;
     }
@@ -712,7 +716,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
-      WiFi.mode(WIFI_STA);
+      WiFi.mode(WIFI_AP_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -735,7 +739,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
       {
         WiFi.persistent(false);
         // connected
-        WiFi.mode(WIFI_STA);
+        WiFi.mode(WIFI_AP_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -825,7 +829,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
-      WiFi.mode(WIFI_STA);
+      WiFi.mode(WIFI_AP_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -848,7 +852,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
       {
         WiFi.persistent(false);
         // connected
-        WiFi.mode(WIFI_STA);
+        WiFi.mode(WIFI_AP_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -979,6 +983,7 @@ uint8_t AsyncWiFiManager::connectWifiSTA(String ssid, String pass)
     else
     {
       DEBUG_WM(F("Try to connect with saved credentials"));
+      DEBUG_WM(ssid.c_str());
       WiFi.begin();
     }
   }
@@ -1567,7 +1572,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   WiFi.persistent(false);
   // connected
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Credentials Saved");
@@ -1738,6 +1743,26 @@ void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
   ESP.restart();
 #endif
   delay(200);
+}
+
+// handle the stand alone page
+void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
+{
+  DEBUG_WM(F("Stand alone"));
+
+  String page = FPSTR(WFM_HTTP_HEAD);
+  page.replace("{v}", "Stand alone");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h3><center>Are you sure you want to activate stand alone mode ?</center></h3>");
+  page += FPSTR(HTTP_STAND_ALONE_OPTIONS);
+  page += _customOptionsElement;
+  page += FPSTR(HTTP_END);
+  request->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent stand alone page"));
 }
 
 void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)

@@ -54,6 +54,7 @@ const char HTTP_SCRIPT[] PROGMEM = "<script>function c(l){document.getElementByI
 const char HTTP_HEAD_END[] PROGMEM = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
 const char HTTP_PORTAL_OPTIONS[] PROGMEM = "<form action=\"/api/v2/wifi/scan\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/api/v2/wifi/info\" method=\"get\"><button>Info</button></form><br/><form action=\"/api/v2/wifi/reset\" method=\"post\"><button>Reset</button></form><br/><form action=\"/api/v2/wifi/stand_alone\" method=\"get\"><button>Activate stand alone mode</button></form><br/><form action=\"/\" method=\"post\"><button>Xenia home</button></form>";
 const char HTTP_STAND_ALONE_OPTIONS[] PROGMEM = "<form action=\"/api/v2/wifi/stand_alone_yes\" method=\"get\"><button>YES</button></form><br/><form action=\"/\" method=\"get\"><button>NO</button></form>";
+const char HTTP_STAND_ALONE_OPTIONS_STA[] PROGMEM = "<form action=\"/api/v2/wifi/stand_alone_yes\" method=\"get\"><button>YES</button></form><br/><form action=\"/wifi\" method=\"get\"><button>NO</button></form>";
 const char HTTP_ITEM[] PROGMEM = "<div><a href='#p' onclick='c(this)'>{v}</a>&nbsp;<span class='q {i}'>{r}%</span></div>";
 const char HTTP_FORM_START[] PROGMEM = "<form method='get' action='/api/v2/wifi/save'><input id='s' name='s' length=32 placeholder='SSID'><br/><input id='p' name='p' length=64 type='password' placeholder='password'><br/>";
 const char HTTP_FORM_PARAM[] PROGMEM = "<br/><input id='{i}' name='{n}' length={l} placeholder='{p}' value='{v}' {c}>";
@@ -140,8 +141,7 @@ public:
                       unsigned long maxConnectRetries = 1,
                       unsigned long retryDelayMs = 1000);
 
-  void staModeSetup(char const *apName,
-                      char const *apPassword);
+  void staModeSetup();
   void setupApiCalls();
 
   // if you want to always start the config portal, without trying to connect first
@@ -278,6 +278,7 @@ private:
   void handleReset(AsyncWebServerRequest *);
   void handleResetSTA(AsyncWebServerRequest *);
   void handleStandAlone(AsyncWebServerRequest *);
+  void handleStandAloneSTA(AsyncWebServerRequest *);
   void handleNotFound(AsyncWebServerRequest *);
   boolean captivePortal(AsyncWebServerRequest *);
 

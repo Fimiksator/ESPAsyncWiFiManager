@@ -289,8 +289,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   return startConfigPortal(apName, apPassword);
 }
 
-void AsyncWiFiManager::staModeSetup(char const *apName,
-                    char const *apPassword)
+void AsyncWiFiManager::staModeSetup()
 {
   setupApiCalls();
   return;
@@ -308,6 +307,8 @@ void AsyncWiFiManager::setupApiCalls()
              std::bind(&AsyncWiFiManager::handleInfoSTA, this, std::placeholders::_1));
   server->on("/api/v2/wifi/reset",
              std::bind(&AsyncWiFiManager::handleResetSTA, this, std::placeholders::_1));
+  server->on("/api/v2/wifi/stand_alone",
+             std::bind(&AsyncWiFiManager::handleStandAloneSTA, this, std::placeholders::_1));
 }
 
 String AsyncWiFiManager::networkListAsString()
@@ -1028,6 +1029,7 @@ uint8_t AsyncWiFiManager::waitForConnectResult()
       {
         keepConnecting = false;
       }
+      DEBUG_WM(F("Connecting"));
       delay(100);
     }
     return status;
@@ -1759,6 +1761,25 @@ void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
   page += F("<h3><center>Are you sure you want to activate stand alone mode ?</center></h3>");
   page += FPSTR(HTTP_STAND_ALONE_OPTIONS);
   page += _customOptionsElement;
+  page += FPSTR(HTTP_END);
+  request->send(200, "text/html", page);
+
+  DEBUG_WM(F("Sent stand alone page"));
+}
+
+void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
+{
+  DEBUG_WM(F("Stand alone"));
+
+  String page = FPSTR(WFM_HTTP_HEAD);
+  page.replace("{v}", "Stand alone");
+  page += FPSTR(HTTP_SCRIPT);
+  page += FPSTR(HTTP_STYLE);
+  //page += _customHeadElement;
+  page += FPSTR(HTTP_HEAD_END);
+  page += F("<h3><center>Are you sure you want to activate stand alone mode ?</center></h3>");
+  page += FPSTR(HTTP_STAND_ALONE_OPTIONS_STA);
+  //page += _customOptionsElement;
   page += FPSTR(HTTP_END);
   request->send(200, "text/html", page);
 

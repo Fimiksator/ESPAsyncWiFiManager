@@ -12,6 +12,10 @@
  **************************************************************/
 
 #include "ESPAsyncWiFiManager.h"
+#include "ArduinoNvs.h"
+
+static void wifi_stand_alone_request(AsyncWebServerRequest *request);
+static void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request);
 
 AsyncWiFiManagerParameter::AsyncWiFiManagerParameter(const char *custom)
 {
@@ -181,6 +185,14 @@ void AsyncWiFiManager::setupConfigPortal()
   server->on("/api/v2/wifi/stand_alone",
              std::bind(&AsyncWiFiManager::handleStandAlone, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
+  server->on("/api/v2/wifi/stand_alone_yes", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+      wifi_stand_alone_request(request);
+  });
+  server->on("/api/v2/wifi/stand_alone_no", HTTP_GET, [](AsyncWebServerRequest *request)
+  {
+      wifi_stand_alone_deactivate_request(request);
+  });
   server->on("/fwlink",
              std::bind(&AsyncWiFiManager::handleRoot, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER); // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
@@ -231,6 +243,21 @@ String getESP32ChipID()
 }
 #endif
 
+void wifi_stand_alone_request(AsyncWebServerRequest *request)
+{
+    NVS.setInt("stand_alone", 1, true);
+    request->send(200);
+    delay(200);
+    ESP.restart();
+}
+
+void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
+{
+    NVS.setInt("stand_alone", 0, true);
+    request->send(200);
+    delay(200);
+    ESP.restart();
+}
 boolean AsyncWiFiManager::autoConnect(unsigned long maxConnectRetries,
                                       unsigned long retryDelayMs)
 {
@@ -370,6 +397,7 @@ void AsyncWiFiManager::scan(boolean async)
   DEBUG_WM(F("About to scan()"));
   if (wifiSSIDscan)
   {
+    Serial.printf("wifi mode %d", WiFi.getMode());
     wifi_ssid_count_t n = WiFi.scanNetworks(async);
     copySSIDInfo(n);
   }
@@ -1331,6 +1359,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   page += FPSTR(HTTP_HEAD_END);
 
   WiFiResult *wifiSSIDs2;
+  Serial.printf("wifi mode %d\r\n", WiFi.getMode());
   wifi_ssid_count_t n = WiFi.scanNetworks(false);
 
   if (n == WIFI_SCAN_FAILED)
@@ -1353,6 +1382,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   else
   {
     DEBUG_WM(F("Scan done"));
+    Serial.printf("Discovered networks %d\r\n", n);
   }
 
   if (n > 0)
@@ -1363,6 +1393,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
       delete[] wifiSSIDs2;
     }
     wifiSSIDs2 = new WiFiResult[n];
+    wifiSSIDCount = n;
 
     for (wifi_ssid_count_t i = 0; i < n; i++)
     {

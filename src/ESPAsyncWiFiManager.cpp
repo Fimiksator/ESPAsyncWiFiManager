@@ -13,6 +13,7 @@
 
 #include "ESPAsyncWiFiManager.h"
 #include "ArduinoNvs.h"
+#include "../../../../../include/nvs_conf.h"
 
 static void wifi_stand_alone_request(AsyncWebServerRequest *request);
 static void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request);
@@ -245,16 +246,19 @@ String getESP32ChipID()
 
 void wifi_stand_alone_request(AsyncWebServerRequest *request)
 {
-    NVS.setInt("stand_alone", 1, true);
-    request->send(200);
+    NVS.setInt(NVS_STAND_ALONE, 1, true);
+    String page = "You can connect to the net work of the machine. The link to the landing page is.... <a href=\"http://192.168.10.101\">192.168.10.101</a>";
+    request->send(200, "text/html", page);
+    WiFi.begin("dummyNetwork", "12345678");
     delay(200);
     ESP.restart();
 }
 
 void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
 {
-    NVS.setInt("stand_alone", 0, true);
-    request->send(200);
+    NVS.setInt(NVS_STAND_ALONE, 0, true);
+    String page = "Stand alone mode deactivated.";
+    request->send(200, "text/html", page);
     delay(200);
     ESP.restart();
 }
@@ -1586,6 +1590,8 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   request->send(200, "text/html", page);
 
   DEBUG_WM(F("Sent wifi save page"));
+
+  delay(1000);
 
   connect = true; // signal ready to connect/reset
 }

@@ -282,7 +282,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   DEBUG_WM(F(""));
 
   // attempt to connect; should it fail, fall back to AP
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
   {
@@ -293,7 +293,6 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
     {
       DEBUG_WM(F("IP Address:"));
       DEBUG_WM(WiFi.localIP());
-      DEBUG_WM(WiFi.SSID().c_str());
       // connected
       return true;
     }
@@ -401,7 +400,6 @@ void AsyncWiFiManager::scan(boolean async)
   DEBUG_WM(F("About to scan()"));
   if (wifiSSIDscan)
   {
-    Serial.printf("wifi mode %d", WiFi.getMode());
     wifi_ssid_count_t n = WiFi.scanNetworks(async);
     copySSIDInfo(n);
   }
@@ -749,7 +747,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
-      WiFi.mode(WIFI_AP_STA);
+      WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -772,7 +770,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
       {
         WiFi.persistent(false);
         // connected
-        WiFi.mode(WIFI_AP_STA);
+        WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -862,7 +860,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
-      WiFi.mode(WIFI_AP_STA);
+      WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -885,7 +883,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
       {
         WiFi.persistent(false);
         // connected
-        WiFi.mode(WIFI_AP_STA);
+        WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -1016,7 +1014,6 @@ uint8_t AsyncWiFiManager::connectWifiSTA(String ssid, String pass)
     else
     {
       DEBUG_WM(F("Try to connect with saved credentials"));
-      DEBUG_WM(ssid.c_str());
       WiFi.begin();
     }
   }
@@ -1061,7 +1058,6 @@ uint8_t AsyncWiFiManager::waitForConnectResult()
       {
         keepConnecting = false;
       }
-      DEBUG_WM(F("Connecting"));
       delay(100);
     }
     return status;
@@ -1363,7 +1359,6 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   page += FPSTR(HTTP_HEAD_END);
 
   WiFiResult *wifiSSIDs2;
-  Serial.printf("wifi mode %d\r\n", WiFi.getMode());
   wifi_ssid_count_t n = WiFi.scanNetworks(false);
 
   if (n == WIFI_SCAN_FAILED)
@@ -1386,7 +1381,6 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   else
   {
     DEBUG_WM(F("Scan done"));
-    Serial.printf("Discovered networks %d\r\n", n);
   }
 
   if (n > 0)
@@ -1397,7 +1391,6 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
       delete[] wifiSSIDs2;
     }
     wifiSSIDs2 = new WiFiResult[n];
-    wifiSSIDCount = n;
 
     for (wifi_ssid_count_t i = 0; i < n; i++)
     {
@@ -1591,8 +1584,6 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 
   DEBUG_WM(F("Sent wifi save page"));
 
-  delay(1000);
-
   connect = true; // signal ready to connect/reset
 }
 
@@ -1611,7 +1602,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   WiFi.persistent(false);
   // connected
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_STA);
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Credentials Saved");

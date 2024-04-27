@@ -249,7 +249,14 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
     NVS.setInt(NVS_STAND_ALONE, 1, true);
     String page = "You can connect to the net work of the machine. The link to the landing page is.... <a href=\"http://192.168.10.101\">192.168.10.101</a>";
     request->send(200, "text/html", page);
-    WiFi.begin("dummyNetwork", "12345678");
+    WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
+    WiFi.persistent(true);
+#if defined(ESP8266)
+    WiFi.disconnect(true);
+#else
+    WiFi.disconnect(true, true);
+#endif
+    WiFi.persistent(false);
     delay(200);
     ESP.restart();
 }
@@ -282,6 +289,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   DEBUG_WM(F(""));
 
   // attempt to connect; should it fail, fall back to AP
+  DEBUG_WM(F("Setting sta mode"));
   WiFi.mode(WIFI_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
@@ -301,7 +309,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
     {
       // we might connect during the delay
       unsigned long restDelayMs = retryDelayMs;
-      while (restDelayMs != 0)
+      while (restDelayMs > 0)
       {
         if (WiFi.status() == WL_CONNECTED)
         {
@@ -747,6 +755,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
+      DEBUG_WM(F("Setting sta mode"));
       WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
@@ -770,6 +779,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
       {
         WiFi.persistent(false);
         // connected
+        DEBUG_WM(F("Setting sta mode"));
         WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
@@ -860,6 +870,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
+      DEBUG_WM(F("Setting sta mode"));
       WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
@@ -883,6 +894,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
       {
         WiFi.persistent(false);
         // connected
+        DEBUG_WM(F("Setting sta mode"));
         WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
@@ -1192,6 +1204,8 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   page += "</h1>";
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS);
+  page += NVS.getInt(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
+  page += FPSTR(HTTP_PORTAL_OPTIONS2);
   page += _customOptionsElement;
   page += FPSTR(HTTP_END);
 
@@ -1215,6 +1229,8 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS);
+  page += NVS.getInt(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
+  page += FPSTR(HTTP_PORTAL_OPTIONS2);
   //page += _customOptionsElement;
   page += FPSTR(HTTP_END);
 
@@ -1391,6 +1407,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
       delete[] wifiSSIDs2;
     }
     wifiSSIDs2 = new WiFiResult[n];
+    wifiSSIDCount = n;
 
     for (wifi_ssid_count_t i = 0; i < n; i++)
     {
@@ -1511,6 +1528,8 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
 
+  NVS.setInt(NVS_STAND_ALONE, 0, true);
+
   // SAVE/connect here
   needInfo = true;
   _ssid = request->arg("s").c_str();
@@ -1592,17 +1611,12 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
 
+  NVS.setInt(NVS_STAND_ALONE, 0, true);
+
   // SAVE/connect here
   needInfo = true;
   String _ssid2 = request->arg("s").c_str();
   String _pass2 = request->arg("p").c_str();
-
-  WiFi.persistent(true);
-  connectWifiSTA(_ssid2, _pass2);
-
-  WiFi.persistent(false);
-  // connected
-  WiFi.mode(WIFI_STA);
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Credentials Saved");
@@ -1617,7 +1631,17 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   DEBUG_WM(F("Sent wifi save page"));
 
-  delay(200);
+  delay(2000);
+
+  WiFi.persistent(true);
+  
+  WiFi.disconnect(false);
+  WiFi.begin(_ssid2.c_str(), _pass2.c_str());
+
+  WiFi.persistent(false);
+  // connected
+  DEBUG_WM(F("Setting sta mode"));
+  WiFi.mode(WIFI_STA);
 
   DEBUG_WM(F("Connected to wifi"));
   Serial.println(WiFi.SSID());

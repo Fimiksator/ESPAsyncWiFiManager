@@ -14,6 +14,7 @@
 #include "ESPAsyncWiFiManager.h"
 #include "ArduinoNvs.h"
 #include "../../../../../include/nvs_conf.h"
+#include <esp_task_wdt.h> // watchdog
 
 static void wifi_stand_alone_request(AsyncWebServerRequest *request);
 static void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request);
@@ -311,6 +312,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
       unsigned long restDelayMs = retryDelayMs;
       while (restDelayMs > 0)
       {
+        esp_task_wdt_reset();
         if (WiFi.status() == WL_CONNECTED)
         {
           DEBUG_WM(F("IP Address (connected during delay):"));
@@ -722,6 +724,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
   scannow = 0;
   while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
   {
+    esp_task_wdt_reset(); // watchdog reset
 // DNS
 #ifndef USE_EADNS
     dnsServer->processNextRequest();
@@ -837,6 +840,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
   scannow = 0;
   while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
   {
+    esp_task_wdt_reset(); // watchdog reset
 // DNS
 #ifndef USE_EADNS
     dnsServer->processNextRequest();
@@ -1060,6 +1064,7 @@ uint8_t AsyncWiFiManager::waitForConnectResult()
     uint8_t status;
     while (keepConnecting)
     {
+      esp_task_wdt_reset(); // watchdog reset
       status = WiFi.status();
       if (millis() > start + _connectTimeout)
       {
@@ -1840,7 +1845,7 @@ void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
 
 void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
 {
-  DEBUG_WM(F("Handle not found"));
+  //DEBUG_WM(F("Handle not found"));
   if (captivePortal(request))
   {
     // if captive portal redirect instead of displaying the error page

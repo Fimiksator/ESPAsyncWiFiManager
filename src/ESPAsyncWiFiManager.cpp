@@ -169,7 +169,7 @@ void AsyncWiFiManager::setupConfigPortal()
   setInfo();
 
   // setup web pages: root, wifi config pages, SO captive portal detectors and not found
-  server->on("/",
+  server->on("/wifi",
              std::bind(&AsyncWiFiManager::handleRoot, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
   server->on("/api/v2/wifi/scan",
@@ -265,7 +265,7 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
 void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
 {
     NVS.setInt(NVS_STAND_ALONE, 0, true);
-    String page = "Stand alone mode deactivated.";
+    String page = "Stand alone mode deactivated. The link to the landing page is.... <a href=\"http://192.168.10.101\">192.168.10.101</a>";
     request->send(200, "text/html", page);
     delay(200);
     ESP.restart();
@@ -291,7 +291,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
 
   // attempt to connect; should it fail, fall back to AP
   DEBUG_WM(F("Setting sta mode"));
-  WiFi.mode(WIFI_STA);
+  //WiFi.mode(WIFI_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
   {
@@ -759,7 +759,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     {
       // connected
       DEBUG_WM(F("Setting sta mode"));
-      WiFi.mode(WIFI_STA);
+      //WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -783,7 +783,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
         WiFi.persistent(false);
         // connected
         DEBUG_WM(F("Setting sta mode"));
-        WiFi.mode(WIFI_STA);
+        //WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -875,7 +875,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     {
       // connected
       DEBUG_WM(F("Setting sta mode"));
-      WiFi.mode(WIFI_STA);
+      //WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -899,7 +899,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
         WiFi.persistent(false);
         // connected
         DEBUG_WM(F("Setting sta mode"));
-        WiFi.mode(WIFI_STA);
+        //WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -1190,6 +1190,8 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   scannow = 0;
   DEBUG_WM(F("Handle root"));
 
+  Serial.printf("Got request %s\r\n", request->url().c_str());
+
   if (captivePortal(request))
   {
     // if captive portal redirect instead of displaying the page
@@ -1214,7 +1216,10 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   page += _customOptionsElement;
   page += FPSTR(HTTP_END);
 
-  request->send(200, "text/html", page);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", page);
+  response->addHeader("Cache-control","no-cache	");
+  request->send(response);
+  
   DEBUG_WM(F("Sent..."));
 }
 
@@ -1226,6 +1231,8 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
 
   DEBUG_WM(F("Handle root"));
 
+  Serial.printf("Got request %s\r\n", request->url().c_str());
+
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Options");
   page += FPSTR(HTTP_SCRIPT);
@@ -1233,13 +1240,16 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
   //page += _customHeadElement;
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
-  page += FPSTR(HTTP_PORTAL_OPTIONS);
+  page += FPSTR(HTTP_PORTAL_OPTIONS_STA);
   page += NVS.getInt(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
   page += FPSTR(HTTP_PORTAL_OPTIONS2);
   //page += _customOptionsElement;
   page += FPSTR(HTTP_END);
 
-  request->send(200, "text/html", page);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", page);
+  response->addHeader("Cache-control","no-cache	");
+  request->send(response);
+
   DEBUG_WM(F("Sent..."));
 }
 
@@ -1250,6 +1260,7 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
   scannow = 0;
 
   DEBUG_WM(F("Handle wifi"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Config ESP");
@@ -1374,6 +1385,8 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   String page = FPSTR(WFM_HTTP_HEAD);
 
   page.replace("{v}", "Config ESP");
+  Serial.printf("Got request %s\r\n", request->url().c_str());
+
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   //page += _customHeadElement;
@@ -1532,6 +1545,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
 void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   NVS.setInt(NVS_STAND_ALONE, 0, true);
 
@@ -1599,7 +1613,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
-  page += F("<meta http-equiv=\"refresh\" content=\"5; url=/api/v2/wifi/info\">");
+  page += F("<meta http-equiv=\"refresh\" content=\"3; url=/api/v2/wifi/info\">");
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED);
   page += FPSTR(HTTP_END);
@@ -1615,6 +1629,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   NVS.setInt(NVS_STAND_ALONE, 0, true);
 
@@ -1627,7 +1642,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   page.replace("{v}", "Credentials Saved");
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
-  page += F("<meta http-equiv=\"refresh\" content=\"5; url=/api/v2/wifi/info\">");
+  page += F("<meta http-equiv=\"refresh\" content=\"3; url=/api/v2/wifi/info\">");
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED);
   page += FPSTR(HTTP_END);
@@ -1646,7 +1661,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   WiFi.persistent(false);
   // connected
   DEBUG_WM(F("Setting sta mode"));
-  WiFi.mode(WIFI_STA);
+  //WiFi.mode(WIFI_STA);
 
   DEBUG_WM(F("Connected to wifi"));
   Serial.println(WiFi.SSID());
@@ -1655,7 +1670,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   delay(200);
 
-  ESP.restart();
+  //ESP.restart();
 }
 
 // handle the info page
@@ -1708,6 +1723,7 @@ String AsyncWiFiManager::infoAsString()
 void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Info"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1737,6 +1753,7 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleInfoSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Info"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1758,6 +1775,7 @@ void AsyncWiFiManager::handleInfoSTA(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Reset"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1783,6 +1801,7 @@ void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Reset"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1808,6 +1827,7 @@ void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Stand alone"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Stand alone");
@@ -1827,6 +1847,7 @@ void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Stand alone"));
+  Serial.printf("Got request %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Stand alone");
@@ -1845,6 +1866,8 @@ void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
 
 void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
 {
+  Serial.printf("Got request %s\r\n", request->url().c_str());
+
   //DEBUG_WM(F("Handle not found"));
   if (captivePortal(request))
   {
@@ -1852,6 +1875,7 @@ void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
     return;
   }
 
+#if 0
   String message = "File Not Found\n\n";
   message += "URI: ";
   message += request->url();
@@ -1860,12 +1884,14 @@ void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
   message += "\nArguments: ";
   message += request->args();
   message += "\n";
-
   for (unsigned int i = 0; i < request->args(); i++)
   {
     message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
   }
-  AsyncWebServerResponse *response = request->beginResponse(404, "text/plain", message);
+#else
+  String message = F("<meta http-equiv=\"refresh\" content=\"1; url=/wifi/\">");
+#endif
+  AsyncWebServerResponse *response = request->beginResponse(404, "text/html", message);
   response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   response->addHeader("Pragma", "no-cache");
   response->addHeader("Expires", "-1");
@@ -1880,7 +1906,7 @@ boolean AsyncWiFiManager::captivePortal(AsyncWebServerRequest *request)
   {
     DEBUG_WM(F("Request redirected to captive portal"));
     AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
-    response->addHeader("Location", String("http://") + toStringIp(request->client()->localIP()));
+    response->addHeader("Location", String("http://") + toStringIp(request->client()->localIP()) + String("/wifi"));
     request->send(response);
     return true;
   }

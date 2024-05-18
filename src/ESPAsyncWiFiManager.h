@@ -321,4 +321,6 @@ private:
   }
 };
 
+void resetInfoMsgStatus();
+
 #endif

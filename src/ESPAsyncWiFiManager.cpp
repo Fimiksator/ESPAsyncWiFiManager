@@ -16,6 +16,7 @@
 #include "../../../../../include/nvs_conf.h"
 #include <esp_task_wdt.h> // watchdog
 
+static int save_attempted = 0;
 static void wifi_stand_alone_request(AsyncWebServerRequest *request);
 static void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request);
 
@@ -248,7 +249,7 @@ String getESP32ChipID()
 void wifi_stand_alone_request(AsyncWebServerRequest *request)
 {
     NVS.setInt(NVS_STAND_ALONE, 1, true);
-    String page = "You can connect to the net work of the machine. The link to the landing page is.... <a href=\"http://192.168.10.101\">192.168.10.101</a>";
+    String page = "Search and connect to the network of the machine.";
     request->send(200, "text/html", page);
     WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
     WiFi.persistent(true);
@@ -265,7 +266,7 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
 void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
 {
     NVS.setInt(NVS_STAND_ALONE, 0, true);
-    String page = "Stand alone mode deactivated. The link to the landing page is.... <a href=\"http://192.168.10.101\">192.168.10.101</a>";
+    String page = "Standalone mode is deactivated. Connect again to the network of the machine and connect the machine to the local wifi.";
     request->send(200, "text/html", page);
     delay(200);
     ESP.restart();
@@ -290,7 +291,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   DEBUG_WM(F(""));
 
   // attempt to connect; should it fail, fall back to AP
-  DEBUG_WM(F("Setting sta mode"));
+  //DEBUG_WM(F("Setting sta mode"));
   //WiFi.mode(WIFI_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
@@ -758,7 +759,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
-      DEBUG_WM(F("Setting sta mode"));
+      //DEBUG_WM(F("Setting sta mode"));
       //WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
@@ -782,7 +783,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
       {
         WiFi.persistent(false);
         // connected
-        DEBUG_WM(F("Setting sta mode"));
+        //DEBUG_WM(F("Setting sta mode"));
         //WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
@@ -874,7 +875,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     if (WiFi.status() == WL_CONNECTED)
     {
       // connected
-      DEBUG_WM(F("Setting sta mode"));
+      //DEBUG_WM(F("Setting sta mode"));
       //WiFi.mode(WIFI_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
@@ -898,7 +899,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
       {
         WiFi.persistent(false);
         // connected
-        DEBUG_WM(F("Setting sta mode"));
+        //DEBUG_WM(F("Setting sta mode"));
         //WiFi.mode(WIFI_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
@@ -1613,7 +1614,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
   page += _customHeadElement;
-  page += F("<meta http-equiv=\"refresh\" content=\"3; url=/api/v2/wifi/info\">");
+  page += F("<meta http-equiv=\"refresh\" content=\"7; url=/api/v2/wifi/info\">");
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED);
   page += FPSTR(HTTP_END);
@@ -1623,6 +1624,8 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   DEBUG_WM(F("Sent wifi save page"));
 
   connect = true; // signal ready to connect/reset
+
+  save_attempted = 1;
 }
 
 // handle the WLAN save form and redirect to WLAN config page again
@@ -1642,12 +1645,14 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   page.replace("{v}", "Credentials Saved");
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
-  page += F("<meta http-equiv=\"refresh\" content=\"3; url=/api/v2/wifi/info\">");
+  page += F("<meta http-equiv=\"refresh\" content=\"7; url=/api/v2/wifi/info\">");
   page += FPSTR(HTTP_HEAD_END);
   page += FPSTR(HTTP_SAVED);
   page += FPSTR(HTTP_END);
 
   request->send(200, "text/html", page);
+
+  save_attempted = 1;
 
   DEBUG_WM(F("Sent wifi save page"));
 
@@ -1660,7 +1665,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   WiFi.persistent(false);
   // connected
-  DEBUG_WM(F("Setting sta mode"));
+  //DEBUG_WM(F("Setting sta mode"));
   //WiFi.mode(WIFI_STA);
 
   DEBUG_WM(F("Connected to wifi"));
@@ -1716,7 +1721,24 @@ String AsyncWiFiManager::infoAsString()
   page += F("<dt>Station MAC</dt><dd>");
   page += WiFi.macAddress();
   page += F("</dd>");
-  page += F("</dl>");
+  page += F("</dl>");   
+  if (save_attempted)
+  {
+    page += F("</div><br><div style=text-align:center;display:inline-block;min-width:400px><dl><dt>");
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      page += F("Connect now to your network ");
+      page += WiFi.SSID();
+      page += F(" to get access to your machine by using the IPAddress: ");
+      page += WiFi.localIP().toString();
+    }
+    else
+    { 
+      page += F("Connection failed to the network (wrong password, connection lost…).");
+    }
+    page += F("</dl>");
+  }
+
   return page;
 }
 
@@ -1732,7 +1754,7 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
   page += _customHeadElement;
   if (connect == true)
   {
-    page += F("<meta http-equiv=\"refresh\" content=\"5; url=/api/v2/wifi/info\">");
+    page += F("<meta http-equiv=\"refresh\" content=\"7; url=/api/v2/wifi/info\">");
   }
   page += FPSTR(HTTP_HEAD_END);
   page += F("<dl>");
@@ -1996,4 +2018,9 @@ String AsyncWiFiManager::toStringIp(IPAddress ip)
   }
   res += String(((ip >> 8 * 3)) & 0xFF);
   return res;
+}
+
+void resetInfoMsgStatus()
+{
+  save_attempted = 0;
 }

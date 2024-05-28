@@ -249,7 +249,7 @@ String getESP32ChipID()
 void wifi_stand_alone_request(AsyncWebServerRequest *request)
 {
     NVS.setInt(NVS_STAND_ALONE, 1, true);
-    String page = "Search and connect to the network of the machine.";
+    String page = "Search and connect to the network of the machine and open the webinterface: 192.168.10.101";
     request->send(200, "text/html", page);
     WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
     WiFi.persistent(true);

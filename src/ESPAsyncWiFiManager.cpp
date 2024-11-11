@@ -292,7 +292,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
 
   // attempt to connect; should it fail, fall back to AP
   //DEBUG_WM(F("Setting sta mode"));
-  //WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
   {
@@ -671,7 +671,7 @@ void AsyncWiFiManager::criticalLoop()
       {
         // connected
         // alanswx - should we have a config to decide if we should shut down AP?
-        // WiFi.mode(WIFI_STA);
+        WiFi.mode(WIFI_AP_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -760,7 +760,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     {
       // connected
       //DEBUG_WM(F("Setting sta mode"));
-      //WiFi.mode(WIFI_STA);
+      WiFi.mode(WIFI_AP_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -784,7 +784,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
         WiFi.persistent(false);
         // connected
         //DEBUG_WM(F("Setting sta mode"));
-        //WiFi.mode(WIFI_STA);
+        WiFi.mode(WIFI_AP_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -876,7 +876,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     {
       // connected
       //DEBUG_WM(F("Setting sta mode"));
-      //WiFi.mode(WIFI_STA);
+      WiFi.mode(WIFI_AP_STA);
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -900,7 +900,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
         WiFi.persistent(false);
         // connected
         //DEBUG_WM(F("Setting sta mode"));
-        //WiFi.mode(WIFI_STA);
+        WiFi.mode(WIFI_AP_STA);
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -1666,7 +1666,7 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   WiFi.persistent(false);
   // connected
   //DEBUG_WM(F("Setting sta mode"));
-  //WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   DEBUG_WM(F("Connected to wifi"));
   Serial.println(WiFi.SSID());

@@ -170,7 +170,7 @@ void AsyncWiFiManager::setupConfigPortal()
   setInfo();
 
   // setup web pages: root, wifi config pages, SO captive portal detectors and not found
-  server->on("/wifi",
+  server->on("/",
              std::bind(&AsyncWiFiManager::handleRoot, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
   server->on("/api/v2/wifi/scan",
@@ -248,6 +248,7 @@ String getESP32ChipID()
 
 void wifi_stand_alone_request(AsyncWebServerRequest *request)
 {
+    log_i("wifi_stand_alone_request");
     NVS.setInt(NVS_STAND_ALONE, 1, true);
     String page = "Search and connect to the network of the machine and open the webinterface: 192.168.10.101";
     request->send(200, "text/html", page);
@@ -265,6 +266,7 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
 
 void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
 {
+    log_i("wifi_stand_alone_deactivate_request");
     NVS.setInt(NVS_STAND_ALONE, 0, true);
     String page = "Standalone mode is deactivated. Connect again to the network of the machine and connect the machine to the local wifi.";
     request->send(200, "text/html", page);
@@ -274,6 +276,8 @@ void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
 boolean AsyncWiFiManager::autoConnect(unsigned long maxConnectRetries,
                                       unsigned long retryDelayMs)
 {
+  log_i("autoConnect A");
+
   String ssid = "ESP";
 #if defined(ESP8266)
   ssid += String(ESP.getChipId());
@@ -288,6 +292,8 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
                                       unsigned long maxConnectRetries,
                                       unsigned long retryDelayMs)
 {
+  log_i("autoConnect B");
+
   DEBUG_WM(F(""));
 
   // attempt to connect; should it fail, fall back to AP
@@ -311,6 +317,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
     {
       // we might connect during the delay
       unsigned long restDelayMs = retryDelayMs;
+      log_i("going in loop");
       while (restDelayMs > 0)
       {
         esp_task_wdt_reset();
@@ -324,6 +331,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
         delay(thisDelay);
         restDelayMs -= thisDelay;
       }
+      log_i("exit loop");
     }
   }
 
@@ -332,12 +340,14 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
 
 void AsyncWiFiManager::staModeSetup()
 {
+  log_i("staModeSetup");
   setupApiCalls();
   return;
 }
 
 void AsyncWiFiManager::setupApiCalls()
 {
+  log_i("setupApiCalls");
   server->on("/wifi",
              std::bind(&AsyncWiFiManager::handleRootSTA, this, std::placeholders::_1));
   server->on("/api/v2/wifi/scan",
@@ -354,6 +364,7 @@ void AsyncWiFiManager::setupApiCalls()
 
 String AsyncWiFiManager::networkListAsString()
 {
+  log_i("networkListAsString");
   String pager;
   // display networks in page
   for (int i = 0; i < wifiSSIDCount; i++)
@@ -396,6 +407,7 @@ String AsyncWiFiManager::networkListAsString()
 
 String AsyncWiFiManager::scanModal()
 {
+  log_i("scanModal");
   shouldscan = true;
   scan();
   String pager = networkListAsString();
@@ -404,6 +416,7 @@ String AsyncWiFiManager::scanModal()
 
 void AsyncWiFiManager::scan(boolean async)
 {
+  log_i("scan");
   if (!shouldscan)
   {
     return;
@@ -418,6 +431,8 @@ void AsyncWiFiManager::scan(boolean async)
 
 void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
 {
+  log_i("copySSIDInfo");
+
   if (n == WIFI_SCAN_FAILED)
   {
     DEBUG_WM(F("scanNetworks returned: WIFI_SCAN_FAILED!"));
@@ -516,6 +531,8 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
 
 void AsyncWiFiManager::copySSIDInfoSTA(wifi_ssid_count_t n, WiFiResult *wifiSSIDs2)
 {
+  log_i("copySSIDInfoSTA");
+
   if (n == WIFI_SCAN_FAILED)
   {
     DEBUG_WM(F("scanNetworks returned: WIFI_SCAN_FAILED!"));
@@ -581,6 +598,8 @@ void AsyncWiFiManager::copySSIDInfoSTA(wifi_ssid_count_t n, WiFiResult *wifiSSID
 
 void AsyncWiFiManager::startConfigPortalModeless(char const *apName, char const *apPassword)
 {
+  log_i("startConfigPortalModeless");
+
   _modeless = true;
   _apName = apName;
   _apPassword = apPassword;
@@ -620,12 +639,16 @@ void AsyncWiFiManager::startConfigPortalModeless(char const *apName, char const 
 
 void AsyncWiFiManager::loop()
 {
+  log_i("loop");
+
   safeLoop();
   criticalLoop();
 }
 
 void AsyncWiFiManager::setInfo()
 {
+  log_i("setInfo");
+
   pager = infoAsString();
   wifiStatus = WiFi.status();
   needInfo = false;
@@ -633,6 +656,8 @@ void AsyncWiFiManager::setInfo()
 
 String AsyncWiFiManager::setInfoSTA()
 {
+  log_i("setInfoSTA");
+
   String pager2;
   pager2 = infoAsString();
   return pager2;
@@ -641,6 +666,8 @@ String AsyncWiFiManager::setInfoSTA()
 // anything that accesses WiFi, ESP or EEPROM goes here
 void AsyncWiFiManager::criticalLoop()
 {
+  log_i("criticalLoop");
+
   if (_modeless)
   {
     if (scannow == 0 || millis() - scannow >= 60000)
@@ -699,6 +726,8 @@ void AsyncWiFiManager::criticalLoop()
 // anything that doesn't access WiFi, ESP or EEPROM can go here
 void AsyncWiFiManager::safeLoop()
 {
+  log_i("safeLoop");
+
 #ifndef USE_EADNS
   dnsServer->processNextRequest();
 #endif
@@ -706,6 +735,8 @@ void AsyncWiFiManager::safeLoop()
 
 boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPassword)
 {
+  log_i("startConfigPortal");
+  
   // setup AP
   WiFi.mode(WIFI_AP_STA);
   DEBUG_WM(F("SET AP STA"));
@@ -822,6 +853,8 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
 
 boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *apPassword)
 {
+  log_i("startConfigPortalSTA");
+
   // setup AP
   WiFi.mode(WIFI_AP_STA);
   DEBUG_WM(F("SET AP STA"));
@@ -841,6 +874,8 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
   scannow = 0;
   while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
   {
+    log_i("looping 2");
+
     esp_task_wdt_reset(); // watchdog reset
 // DNS
 #ifndef USE_EADNS
@@ -1911,7 +1946,7 @@ void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
     message += " " + request->argName(i) + ": " + request->arg(i) + "\n";
   }
 #else
-  String message = F("<meta http-equiv=\"refresh\" content=\"1; url=/wifi/\">");
+  String message = F("<meta http-equiv=\"refresh\" content=\"1; url=//\">");
 #endif
   AsyncWebServerResponse *response = request->beginResponse(404, "text/html", message);
   response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");

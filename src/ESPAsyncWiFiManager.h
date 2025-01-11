@@ -265,9 +265,9 @@ private:
   void setInfo();
   String setInfoSTA();
   void copySSIDInfo(wifi_ssid_count_t n);
-  void copySSIDInfoSTA(wifi_ssid_count_t n, WiFiResult *wifiSSIDs2);
+  void copySSIDInfoSTA(wifi_ssid_count_t n);
   String networkListAsString();
-  String networkListAsStringSTA( WiFiResult *wifiSSIDs2, wifi_ssid_count_t wifiSSIDCount2);
+  String networkListAsStringSTA();
 
   void handleRoot(AsyncWebServerRequest *);
   void handleRootSTA(AsyncWebServerRequest *);
@@ -297,6 +297,8 @@ private:
 
   WiFiResult *wifiSSIDs;
   wifi_ssid_count_t wifiSSIDCount;
+  WiFiResult *wifiSSIDs2;
+  wifi_ssid_count_t wifiSSIDCount2;
   boolean wifiSSIDscan;
 
   boolean _tryConnectDuringConfigPortal = true;

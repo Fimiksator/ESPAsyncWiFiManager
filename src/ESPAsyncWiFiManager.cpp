@@ -1428,8 +1428,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   //page += _customHeadElement;
   page += FPSTR(HTTP_HEAD_END);
 
-  WiFiResult *wifiSSIDs2;
-  wifi_ssid_count_t n = WiFi.scanNetworks(false);
+  wifi_ssid_count_t n = WiFi.scanNetworks();
 
   if (n == WIFI_SCAN_FAILED)
   {
@@ -1453,78 +1452,23 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
     DEBUG_WM(F("Scan done"));
   }
 
-  if (n > 0)
-  {
-    // WE SHOULD MOVE THIS IN PLACE ATOMICALLY
-    if (wifiSSIDs2)
-    {
-      delete[] wifiSSIDs2;
-    }
-    wifiSSIDs2 = new WiFiResult[n];
-    wifiSSIDCount = n;
 
-    for (wifi_ssid_count_t i = 0; i < n; i++)
-    {
-      wifiSSIDs2[i].duplicate = false;
-
-      WiFi.getNetworkInfo(i,
-                          wifiSSIDs2[i].SSID,
-                          wifiSSIDs2[i].encryptionType,
-                          wifiSSIDs2[i].RSSI,
-                          wifiSSIDs2[i].BSSID,
-                          wifiSSIDs2[i].channel);
-    }
-
-    // RSSI SORT
-
-    // old sort
-    for (int i = 0; i < n; i++)
-    {
-      for (int j = i + 1; j < n; j++)
-      {
-        if (wifiSSIDs2[j].RSSI > wifiSSIDs2[i].RSSI)
-        {
-          std::swap(wifiSSIDs2[i], wifiSSIDs2[j]);
-        }
-      }
-    }
-  }
-
-  String pager;
-  if (wifiSSIDCount == 0)
+  if (n == 0)
   {
     DEBUG_WM(F("No networks found"));
     page += F("No networks found. Refresh to scan again");
   }
   else
   {
-    // display networks in page
-
+    String pager = "";
     for (int i = 0; i < n; i++)
     {
-      if (wifiSSIDs2[i].duplicate == true)
-      {
-        continue; // skip dups
-      }
-
-      unsigned int quality = getRSSIasQuality(wifiSSIDs2[i].RSSI);
       String item = FPSTR(HTTP_ITEM);
-      String rssiQ;
-      rssiQ += quality;
-      item.replace("{v}", wifiSSIDs2[i].SSID);
-      item.replace("{r}", rssiQ);
-      if (wifiSSIDs2[i].encryptionType != WIFI_AUTH_OPEN)
-      {
-        item.replace("{i}", "l");
-      }
-      else
-      {
-        item.replace("{i}", "");
-      }
+      item.replace("{v}", WiFi.SSID(i));
+      item.replace("{r}", String(getRSSIasQuality(WiFi.RSSI(i))));
+      item.replace("{i}", (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : "l");
       pager += item;
-
     }
-
     page += pager;
     page += "<br/>";
   }
@@ -1929,6 +1873,7 @@ void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
   if (captivePortal(request))
   {
     // if captive portal redirect instead of displaying the error page
+    log_i("it's captive portal");
     return;
   }
 

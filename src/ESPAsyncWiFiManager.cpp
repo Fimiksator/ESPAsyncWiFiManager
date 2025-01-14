@@ -529,7 +529,7 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
   }
 }
 
-void AsyncWiFiManager::copySSIDInfoSTA(wifi_ssid_count_t n)
+void AsyncWiFiManager::copySSIDInfoSTA(wifi_ssid_count_t n, WiFiResult *wifiSSIDs2)
 {
   log_i("copySSIDInfoSTA");
 
@@ -1428,7 +1428,8 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   //page += _customHeadElement;
   page += FPSTR(HTTP_HEAD_END);
 
-  wifi_ssid_count_t n = WiFi.scanNetworks(false, true, true, 1);
+  WiFiResult *wifiSSIDs2;
+  wifi_ssid_count_t n = WiFi.scanNetworks(false);
 
   if (n == WIFI_SCAN_FAILED)
   {
@@ -1452,7 +1453,6 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
     DEBUG_WM(F("Scan done"));
   }
 
-
   if (n > 0)
   {
     // WE SHOULD MOVE THIS IN PLACE ATOMICALLY
@@ -1460,10 +1460,10 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
     {
       delete[] wifiSSIDs2;
     }
-    wifiSSIDs2 = new WiFiResult[wifiSSIDCount2];
-    wifiSSIDCount2 = wifiSSIDCount2;
+    wifiSSIDs2 = new WiFiResult[n];
+    wifiSSIDCount = n;
 
-    for (wifi_ssid_count_t i = 0; i < wifiSSIDCount2; i++)
+    for (wifi_ssid_count_t i = 0; i < n; i++)
     {
       wifiSSIDs2[i].duplicate = false;
 
@@ -1478,9 +1478,9 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
     // RSSI SORT
 
     // old sort
-    for (int i = 0; i < wifiSSIDCount2; i++)
+    for (int i = 0; i < n; i++)
     {
-      for (int j = i + 1; j < wifiSSIDCount2; j++)
+      for (int j = i + 1; j < n; j++)
       {
         if (wifiSSIDs2[j].RSSI > wifiSSIDs2[i].RSSI)
         {
@@ -1491,7 +1491,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   }
 
   String pager;
-  if (wifiSSIDCount2 == 0)
+  if (wifiSSIDCount == 0)
   {
     DEBUG_WM(F("No networks found"));
     page += F("No networks found. Refresh to scan again");
@@ -1500,7 +1500,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   {
     // display networks in page
 
-    for (int i = 0; i < wifiSSIDCount2; i++)
+    for (int i = 0; i < n; i++)
     {
       if (wifiSSIDs2[i].duplicate == true)
       {
@@ -1526,9 +1526,9 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
     }
 
     page += pager;
-
     page += "<br/>";
   }
+
 
 
   page += FPSTR(HTTP_FORM_START);

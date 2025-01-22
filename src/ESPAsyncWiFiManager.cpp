@@ -1881,21 +1881,6 @@ void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
     log_i("It's NOT captive portal");
   }
 
-  request->send(200, "text/html", 
-     "<!DOCTYPE html>"
-      "<html>"
-      "<head><title>Redirecting...</title></head>"
-      "<body>"
-      "<h1>Redirecting...</h1>"
-      "<script>"
-      "setTimeout(() => { window.location.href = '/'; }, 10000);" 
-      "</script>"
-      "</body>"
-      "</html>"
-  );
-
-  return;
-
 #if 0
   String message = "File Not Found\n\n";
   message += "URI: ";

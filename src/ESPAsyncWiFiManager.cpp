@@ -1226,7 +1226,7 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   scannow = 0;
   DEBUG_WM(F("Handle root"));
 
-  Serial.printf("Got request handleRoot %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleRoot %s\r\n", request->url().c_str());
 
   if (captivePortal(request))
   {
@@ -1267,7 +1267,7 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
 
   DEBUG_WM(F("Handle root"));
 
-  Serial.printf("Got request handleRootSTA %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleRootSTA %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Options");
@@ -1296,7 +1296,7 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
   scannow = 0;
 
   DEBUG_WM(F("Handle wifi"));
-  Serial.printf("Got request handleWifi %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleWifi %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Config ESP");
@@ -1421,7 +1421,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   String page = FPSTR(WFM_HTTP_HEAD);
 
   page.replace("{v}", "Config ESP");
-  Serial.printf("Got request handleWifiSTA %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleWifiSTA %s\r\n", request->url().c_str());
 
   page += FPSTR(HTTP_SCRIPT);
   page += FPSTR(HTTP_STYLE);
@@ -1525,7 +1525,7 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
 void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
-  Serial.printf("Got request handleWifiSave %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleWifiSave %s\r\n", request->url().c_str());
 
   NVS.setInt(NVS_STAND_ALONE, 0, true);
 
@@ -1611,7 +1611,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
-  Serial.printf("Got request handleWifiSaveSTA %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleWifiSaveSTA %s\r\n", request->url().c_str());
 
   NVS.setInt(NVS_STAND_ALONE, 0, true);
 
@@ -1724,7 +1724,7 @@ String AsyncWiFiManager::infoAsString()
 void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Info"));
-  Serial.printf("Got request handleInfo %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleInfo %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1754,7 +1754,7 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleInfoSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Info"));
-  Serial.printf("Got request handleInfoSTA %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleInfoSTA %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1776,7 +1776,7 @@ void AsyncWiFiManager::handleInfoSTA(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Reset"));
-  Serial.printf("Got request handleReset %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleReset %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1802,7 +1802,7 @@ void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Reset"));
-  Serial.printf("Got request handleResetSTA %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleResetSTA %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1828,7 +1828,7 @@ void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Stand alone"));
-  Serial.printf("Got request handleStandAlone %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleStandAlone %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Stand alone");
@@ -1848,7 +1848,7 @@ void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Stand alone"));
-  Serial.printf("Got request handleStandAloneSTA %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleStandAloneSTA %s\r\n", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Stand alone");
@@ -1867,7 +1867,7 @@ void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
 
 void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
 {
-  Serial.printf("Got request handleNotFound %s\r\n", request->url().c_str());
+  //Serial.printf("Got request handleNotFound %s\r\n", request->url().c_str());
 
   //DEBUG_WM(F("Handle not found"));
   if (captivePortal(request))

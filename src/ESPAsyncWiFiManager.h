@@ -293,7 +293,7 @@ private:
   String toStringIp(IPAddress ip);
 
   boolean connect;
-  boolean _debug = true;
+  boolean _debug = false;
 
   WiFiResult *wifiSSIDs;
   wifi_ssid_count_t wifiSSIDCount;

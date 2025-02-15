@@ -253,6 +253,7 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
     String page = "Search and connect to the network of the machine and open the webinterface: 192.168.10.101";
     request->send(200, "text/html", page);
     WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
+    log_i("setting AP_STA");
     WiFi.persistent(true);
 #if defined(ESP8266)
     WiFi.disconnect(true);
@@ -298,6 +299,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
 
   // attempt to connect; should it fail, fall back to AP
   //DEBUG_WM(F("Setting sta mode"));
+  log_i("setting AP_STA");
   WiFi.mode(WIFI_AP_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)
@@ -609,8 +611,9 @@ void AsyncWiFiManager::startConfigPortalModeless(char const *apName, char const 
   */
 
   // setup AP
-  WiFi.mode(WIFI_AP_STA);
-  DEBUG_WM(F("SET AP STA"));
+  //WiFi.mode(WIFI_AP_STA);
+  //log_i("setting AP_STA");
+  //DEBUG_WM(F("SET AP STA"));
 
   // try to connect
   if (connectWifi("", "") == WL_CONNECTED)
@@ -698,7 +701,8 @@ void AsyncWiFiManager::criticalLoop()
       {
         // connected
         // alanswx - should we have a config to decide if we should shut down AP?
-        WiFi.mode(WIFI_AP_STA);
+        //WiFi.mode(WIFI_AP_STA);
+        //log_i("setting AP_STA");
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -738,8 +742,9 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
   log_i("startConfigPortal");
   
   // setup AP
-  WiFi.mode(WIFI_AP_STA);
-  DEBUG_WM(F("SET AP STA"));
+  //WiFi.mode(WIFI_AP_STA);
+  //log_i("setting AP_STA");
+  //DEBUG_WM(F("SET AP STA"));
 
   _apName = apName;
   _apPassword = apPassword;
@@ -780,6 +785,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
       scanModal();
       if (_tryConnectDuringConfigPortal)
       {
+        log_i("BEGINNINGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG");
         WiFi.begin(); // try to reconnect to AP
         connectedDuringConfigPortal = true;
       }
@@ -791,7 +797,8 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     {
       // connected
       //DEBUG_WM(F("Setting sta mode"));
-      WiFi.mode(WIFI_AP_STA);
+      //WiFi.mode(WIFI_AP_STA);
+      //log_i("setting AP_STA");
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -815,7 +822,8 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
         WiFi.persistent(false);
         // connected
         //DEBUG_WM(F("Setting sta mode"));
-        WiFi.mode(WIFI_AP_STA);
+        //WiFi.mode(WIFI_AP_STA);
+        //log_i("setting AP_STA");
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -856,8 +864,9 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
   log_i("startConfigPortalSTA");
 
   // setup AP
-  WiFi.mode(WIFI_AP_STA);
-  DEBUG_WM(F("SET AP STA"));
+  //WiFi.mode(WIFI_AP_STA);
+  //log_i("setting AP_STA");
+  //DEBUG_WM(F("SET AP STA"));
 
   _apName = apName;
   _apPassword = apPassword;
@@ -911,7 +920,8 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
     {
       // connected
       //DEBUG_WM(F("Setting sta mode"));
-      WiFi.mode(WIFI_AP_STA);
+      //WiFi.mode(WIFI_AP_STA);
+      //log_i("setting AP_STA");
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
       if (!connectedDuringConfigPortal && _savecallback != NULL)
@@ -936,6 +946,7 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
         // connected
         //DEBUG_WM(F("Setting sta mode"));
         WiFi.mode(WIFI_AP_STA);
+        log_i("setting AP_STA");
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -1149,6 +1160,7 @@ void AsyncWiFiManager::resetSettings()
   DEBUG_WM(F("THIS MAY CAUSE AP NOT TO START UP PROPERLY. YOU NEED TO COMMENT IT OUT AFTER ERASING THE DATA."));
 
   WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
+  log_i("setting AP_STA");
   WiFi.persistent(true);
 #if defined(ESP8266)
   WiFi.disconnect(true);
@@ -1645,16 +1657,17 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   WiFi.persistent(false);
   // connected
   //DEBUG_WM(F("Setting sta mode"));
-  WiFi.mode(WIFI_AP_STA);
+  //WiFi.mode(WIFI_AP_STA);
+  //log_i("setting AP_STA");
 
   DEBUG_WM(F("Connected to wifi"));
   Serial.println(WiFi.SSID());
   DEBUG_WM(F("IP"));
   Serial.println(WiFi.localIP().toString());
 
-  delay(200);
+  delay(2000);
 
-  //ESP.restart();
+  ESP.restart();
 }
 
 // handle the info page

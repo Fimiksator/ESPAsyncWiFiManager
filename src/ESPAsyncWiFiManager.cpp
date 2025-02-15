@@ -249,7 +249,7 @@ String getESP32ChipID()
 void wifi_stand_alone_request(AsyncWebServerRequest *request)
 {
     log_i("wifi_stand_alone_request");
-    NVS.setInt(NVS_STAND_ALONE, 1, true);
+    nvs_set_int(NVS_STAND_ALONE, 1);
     String page = "Search and connect to the network of the machine and open the webinterface: 192.168.10.101";
     request->send(200, "text/html", page);
     WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
@@ -268,7 +268,7 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
 void wifi_stand_alone_deactivate_request(AsyncWebServerRequest *request)
 {
     log_i("wifi_stand_alone_deactivate_request");
-    NVS.setInt(NVS_STAND_ALONE, 0, true);
+    nvs_set_int(NVS_STAND_ALONE, 0);
     String page = "Standalone mode is deactivated. Connect again to the network of the machine and connect the machine to the local wifi.";
     request->send(200, "text/html", page);
     delay(200);
@@ -945,8 +945,8 @@ boolean AsyncWiFiManager::startConfigPortalSTA(char const *apName, char const *a
         WiFi.persistent(false);
         // connected
         //DEBUG_WM(F("Setting sta mode"));
-        WiFi.mode(WIFI_AP_STA);
-        log_i("setting AP_STA");
+        //WiFi.mode(WIFI_AP_STA);
+        //log_i("setting AP_STA");
         // notify that configuration has changed and any optional parameters should be saved
         if (_savecallback != NULL)
         {
@@ -1259,7 +1259,7 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   page += "</h1>";
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS);
-  page += NVS.getInt(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
+  page += nvs_get_int(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
   page += FPSTR(HTTP_PORTAL_OPTIONS2);
   page += _customOptionsElement;
   page += FPSTR(HTTP_END);
@@ -1289,7 +1289,7 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS_STA);
-  page += NVS.getInt(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
+  page += nvs_get_int(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
   page += FPSTR(HTTP_PORTAL_OPTIONS2);
   //page += _customOptionsElement;
   page += FPSTR(HTTP_END);
@@ -1539,7 +1539,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   DEBUG_WM(F("WiFi save"));
   //Serial.printf("Got request handleWifiSave %s\r\n", request->url().c_str());
 
-  NVS.setInt(NVS_STAND_ALONE, 0, true);
+  nvs_set_int(NVS_STAND_ALONE, 0);
 
   // SAVE/connect here
   needInfo = true;
@@ -1625,8 +1625,8 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   DEBUG_WM(F("WiFi save"));
   //Serial.printf("Got request handleWifiSaveSTA %s\r\n", request->url().c_str());
 
-  NVS.setInt(NVS_STAND_ALONE, 0, true);
-
+  nvs_set_int(NVS_STAND_ALONE, 0);
+  
   // SAVE/connect here
   needInfo = true;
   String _ssid2 = request->arg("s").c_str();
@@ -1649,12 +1649,10 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   delay(2000);
 
-  WiFi.persistent(true);
-  
-  WiFi.disconnect(false);
+  //WiFi.persistent(true);
+  //WiFi.disconnect(false);
   WiFi.begin(_ssid2.c_str(), _pass2.c_str());
-
-  WiFi.persistent(false);
+  //WiFi.persistent(false);
   // connected
   //DEBUG_WM(F("Setting sta mode"));
   //WiFi.mode(WIFI_AP_STA);
@@ -1666,8 +1664,6 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
   Serial.println(WiFi.localIP().toString());
 
   delay(2000);
-
-  ESP.restart();
 }
 
 // handle the info page

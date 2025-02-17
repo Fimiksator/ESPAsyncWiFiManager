@@ -1722,7 +1722,7 @@ String AsyncWiFiManager::infoAsString()
     }
     else
     { 
-      page += F("Connection failed to the network (wrong password, connection lost…).");
+      page += F("Connection failed to the network (wrong password, connection lost).");
     }
     page += F("</dl>");
   }

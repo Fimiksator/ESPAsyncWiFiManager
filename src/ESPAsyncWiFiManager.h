@@ -67,6 +67,9 @@ const char HTTP_END[] PROGMEM = "</div></body></html>";
 
 #define WIFI_MANAGER_MAX_PARAMS 10
 
+// get flag if save attampted;
+boolean saveInfoSent();
+
 class AsyncWiFiManagerParameter
 {
 public:
@@ -148,7 +151,6 @@ public:
 
   // if you want to always start the config portal, without trying to connect first
   boolean startConfigPortal(char const *apName, char const *apPassword = NULL);
-  boolean startConfigPortalSTA(char const *apName, char const *apPassword);
 
   void startConfigPortalModeless(char const *apName, char const *apPassword);
 
@@ -293,7 +295,7 @@ private:
   String toStringIp(IPAddress ip);
 
   boolean connect;
-  boolean _debug = true;
+  boolean _debug = CORE_DEBUG_LEVEL == 0 ? false :true;
 
   WiFiResult *wifiSSIDs;
   wifi_ssid_count_t wifiSSIDCount;

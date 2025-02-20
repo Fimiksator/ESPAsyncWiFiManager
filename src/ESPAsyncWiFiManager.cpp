@@ -13,7 +13,7 @@
 
 #include "ESPAsyncWiFiManager.h"
 #include "ArduinoNvs.h"
-#include "../../../../../src/System/EEPROM/eeprom.h"
+#include "../../../../../src/System/EEPROM/eeprom.hpp"
 #include <esp_task_wdt.h> // watchdog
 
 static int save_attempted = 0;

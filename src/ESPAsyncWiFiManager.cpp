@@ -256,10 +256,11 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
     WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
     log_i("setting AP_STA");
     WiFi.persistent(true);
+    log_i("DISCONNECTING................................");
 #if defined(ESP8266)
     WiFi.disconnect(true);
 #else
-    WiFi.disconnect(true, true);
+    WiFi.disconnect(true, false);
 #endif
     WiFi.persistent(false);
     delay(200);
@@ -401,7 +402,7 @@ String AsyncWiFiManager::networkListAsString()
 
 String AsyncWiFiManager::scanModal()
 {
-  shouldscan = true;
+  //shouldscan = true;
   scan();
   String pager = networkListAsString();
   return pager;
@@ -409,6 +410,8 @@ String AsyncWiFiManager::scanModal()
 
 void AsyncWiFiManager::scan(boolean async)
 {
+  static bool try_scan = true;
+
   if (!shouldscan)
   {
     return;
@@ -416,8 +419,12 @@ void AsyncWiFiManager::scan(boolean async)
   DEBUG_WM(F("About to scan()"));
   if (wifiSSIDscan)
   {
+    if (try_scan)
+    {
     wifi_ssid_count_t n = WiFi.scanNetworks(async);
     copySSIDInfo(n);
+    try_scan = false;
+    }
   }
 }
 
@@ -667,6 +674,7 @@ void AsyncWiFiManager::criticalLoop()
       if (connectWifi(_ssid, _pass) != WL_CONNECTED)
       {
         DEBUG_WM(F("Failed to connect"));
+        time_now = millis();
       }
       else
       {
@@ -710,6 +718,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
   _apName = apName;
   _apPassword = apPassword;
   bool connectedDuringConfigPortal = false;
+  unsigned long border = 40000;
 
   // notify we entered AP mode
   if (_apcallback != NULL)
@@ -720,8 +729,20 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
   connect = false;
   setupConfigPortal();
   scannow = 0;
+
+  log_i("*WM: Starting loop");
+
+  time_now = millis();
+
   while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
   {
+    if ( millis() - time_now > border)
+    {
+      log_i("*WM: Setting AP");
+      WiFi.mode(WIFI_AP);
+      time_now = millis();
+      border = 40000000;
+    }
     esp_task_wdt_reset(); // watchdog reset
 // DNS
 #ifndef USE_EADNS
@@ -731,17 +752,18 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     //  we should do a scan every so often here and
     //  try to reconnect to AP while we are at it
     //
-    if (scannow == 0 || millis() - scannow >= 10000)
+    if (scannow == 0 || millis() - scannow >= 1000000)
     {
       DEBUG_WM(F("About to scan()"));
-      shouldscan = true; // since we are modal, we can scan every time
+      log_i("*WM: DISCONNECTING................................");
+      //shouldscan = true; // since we are modal, we can scan every time
 #if defined(ESP8266)
       // we might still be connecting, so that has to stop for scanning
       ETS_UART_INTR_DISABLE();
       wifi_station_disconnect();
       ETS_UART_INTR_ENABLE();
 #else
-      WiFi.disconnect(false);
+      WiFi.disconnect(false, false);
 #endif
       scanModal();
       if (_tryConnectDuringConfigPortal)
@@ -755,6 +777,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     // attempts to reconnect were successful
     if (WiFi.status() == WL_CONNECTED)
     {
+      log_i("*WM: Connected");
       // connected
       // notify that configuration has changed and any optional parameters should be saved
       // configuraton should not be saved when just connected using stored ssid and password during config portal
@@ -768,6 +791,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
 
     if (connect)
     {
+      log_i("*WM: Do connect");
       connect = false;
       delay(2000);
       DEBUG_WM(F("Connecting to new AP"));
@@ -791,6 +815,7 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
         if(_tryConnectDuringConfigPortal)
         {
           DEBUG_WM(F("Failed to connect"));
+          time_now = millis();
         }
       }
 
@@ -808,6 +833,8 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
     }
     yield();
   }
+
+  log_i("*WM: End loop");
 
   server->reset();
   dnsServer->stop();
@@ -834,6 +861,7 @@ uint8_t AsyncWiFiManager::connectWifi(String ssid, String pass)
   // check if we have ssid and pass and force those, if not, try with last saved values
   if (ssid != "")
   {
+    log_i("DISCONNECTING................................");
 #if defined(ESP8266)
     // trying to fix connection in progress hanging
     ETS_UART_INTR_DISABLE();
@@ -849,6 +877,7 @@ uint8_t AsyncWiFiManager::connectWifi(String ssid, String pass)
     if (WiFi.SSID().length() > 0)
     {
       DEBUG_WM(F("Using last saved values, should be faster"));
+      log_i("DISCONNECTING................................");
 #if defined(ESP8266)
       // trying to fix connection in progress hanging
       ETS_UART_INTR_DISABLE();
@@ -896,6 +925,7 @@ uint8_t AsyncWiFiManager::connectWifiSTA(String ssid, String pass)
   // check if we have ssid and pass and force those, if not, try with last saved values
   if (ssid != "")
   {
+    log_i("DISCONNECTING................................");
     WiFi.disconnect(false);
     WiFi.begin(ssid.c_str(), pass.c_str());
   }
@@ -904,6 +934,7 @@ uint8_t AsyncWiFiManager::connectWifiSTA(String ssid, String pass)
     if (WiFi.SSID().length() > 0)
     {
       DEBUG_WM(F("Using last saved values, should be faster"));
+      log_i("DISCONNECTING................................");
       WiFi.disconnect(false);
       WiFi.begin();
     }
@@ -995,10 +1026,11 @@ void AsyncWiFiManager::resetSettings()
   WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
   log_i("setting AP_STA");
   WiFi.persistent(true);
+  log_i("DISCONNECTING................................");
 #if defined(ESP8266)
   WiFi.disconnect(true);
 #else
-  WiFi.disconnect(true, true);
+  WiFi.disconnect(true, false);
 #endif
   WiFi.persistent(false);
 }
@@ -1062,10 +1094,11 @@ void AsyncWiFiManager::setBreakAfterConfig(boolean shouldBreak)
 // handle root or redirect to captive portal
 void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
 {
+  #if 0
   // AJS - maybe we should set a scan when we get to the root???
   // and only scan on demand? timer + on demand? plus a link to make it happen?
 
-  shouldscan = true;
+  //shouldscan = true;
   scannow = 0;
   DEBUG_WM(F("Handle root"));
 
@@ -1074,6 +1107,8 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
     // if captive portal redirect instead of displaying the page
     return;
   }
+
+  #endif
 
   DEBUG_WM(F("Sending Captive Portal"));
 
@@ -1129,8 +1164,8 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
 // wifi config page handler
 void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
 {
-  shouldscan = true;
-  scannow = 0;
+  //shouldscan = true;
+  //scannow = 0;
 
   DEBUG_WM(F("Handle wifi"));
 
@@ -1143,7 +1178,7 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
 
   if (scan)
   {
-    wifiSSIDscan = false;
+    //wifiSSIDscan = false;
 
     DEBUG_WM(F("Scan done"));
     if (wifiSSIDCount == 0)
@@ -1159,7 +1194,7 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
       page += "<br/>";
     }
   }
-  wifiSSIDscan = true;
+  //wifiSSIDscan = true;
 
   page += FPSTR(HTTP_FORM_START);
   char parLength[2];

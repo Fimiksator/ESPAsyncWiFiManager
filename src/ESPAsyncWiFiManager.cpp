@@ -467,9 +467,7 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
       shouldscan = false;
     }
     for (wifi_ssid_count_t i = 0; i < n; i++)
-    {
-      wifiSSIDs[i].duplicate = false;
-
+    {     
 #if defined(ESP8266)
       WiFi.getNetworkInfo(i,
                           wifiSSIDs[i].SSID,
@@ -486,6 +484,12 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
                           wifiSSIDs[i].BSSID,
                           wifiSSIDs[i].channel);
 #endif
+      wifiSSIDs[i].duplicate = false;
+      if (wifiSSIDs[i].SSID == nvs_get_string(NVS_NETWORK))
+      {
+        log_i("FOUND ON SCAN");
+        foundOnScan = true;
+      }
     }
 
     // RSSI SORT
@@ -718,7 +722,6 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
   _apName = apName;
   _apPassword = apPassword;
   bool connectedDuringConfigPortal = false;
-  unsigned long border = 40000;
 
   // notify we entered AP mode
   if (_apcallback != NULL)
@@ -736,12 +739,11 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
 
   while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
   {
-    if ( millis() - time_now > border)
+    if ( ((millis() - time_now > border) || (!foundOnScan && (millis() - time_now > border))) && !ap_on)
     {
       log_i("*WM: Setting AP");
       WiFi.mode(WIFI_AP);
-      time_now = millis();
-      border = 40000000;
+      ap_on = true;
     }
     esp_task_wdt_reset(); // watchdog reset
 // DNS
@@ -1358,6 +1360,10 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   DEBUG_WM(F("WiFi save"));
 
   nvs_set_int(NVS_STAND_ALONE, 0);
+
+  time_now = millis();
+  ap_on = false;
+  border = 10000;
 
   // SAVE/connect here
   needInfo = true;

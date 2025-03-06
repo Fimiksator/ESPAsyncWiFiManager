@@ -220,7 +220,10 @@ private:
   boolean shouldscan = true;
   boolean needInfo = true;
   unsigned long time_now;
-
+  bool foundOnScan = false;
+  bool ap_on = false;
+  unsigned long border = 40000;
+  
   //const int     WM_DONE                 = 0;
   //const int     WM_WAIT                 = 10;
   //const String  HTTP_HEAD = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><title>{v}</title>";

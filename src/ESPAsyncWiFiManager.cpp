@@ -492,6 +492,12 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
       }
     }
 
+    if (!foundOnScan)
+    {
+      time_now = millis();
+      ap_on = false;
+      border = 2000;
+    }
     // RSSI SORT
 
     // old sort
@@ -739,7 +745,8 @@ boolean AsyncWiFiManager::startConfigPortal(char const *apName, char const *apPa
 
   while (_configPortalTimeout == 0 || millis() - _configPortalStart < _configPortalTimeout)
   {
-    if ( ((millis() - time_now > border) || (!foundOnScan && (millis() - time_now > border))) && !ap_on)
+    if (((millis() - time_now > border) || (!foundOnScan && (millis() - time_now > border)))
+          && !ap_on)
     {
       log_i("*WM: Setting AP");
       WiFi.mode(WIFI_AP);
@@ -1363,7 +1370,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 
   time_now = millis();
   ap_on = false;
-  border = 10000;
+  border = 20000;
 
   // SAVE/connect here
   needInfo = true;
@@ -1473,14 +1480,22 @@ void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 
   delay(2000);
 
+  bool was_connected = false;
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    was_connected = true;
+  }
   WiFi.begin(_ssid2.c_str(), _pass2.c_str());
 
-  DEBUG_WM(F("Connected to wifi"));
-  Serial.println(WiFi.SSID());
-  DEBUG_WM(F("IP"));
-  Serial.println(WiFi.localIP().toString());
+  log_i("*WM: Connected to wifi %s", WiFi.SSID().c_str());
+  log_i("*WM: IP %s", WiFi.localIP().toString());
 
-  delay(2000);
+  if (was_connected)
+  {
+      log_i("*WM: I was connected before. Let's reset...");
+      delay(2000);
+      ESP.restart();
+  }
 }
 
 // handle the info page

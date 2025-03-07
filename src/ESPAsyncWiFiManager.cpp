@@ -487,7 +487,7 @@ void AsyncWiFiManager::copySSIDInfo(wifi_ssid_count_t n)
       wifiSSIDs[i].duplicate = false;
       if (wifiSSIDs[i].SSID == nvs_get_string(NVS_NETWORK))
       {
-        log_i("FOUND ON SCAN");
+        log_i("FOUND ON SCAN (%s)", nvs_get_string(NVS_NETWORK).c_str());
         foundOnScan = true;
       }
     }

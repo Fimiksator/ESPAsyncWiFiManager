@@ -1109,6 +1109,7 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
 
   //shouldscan = true;
   scannow = 0;
+  #endif
   DEBUG_WM(F("Handle root"));
 
   if (captivePortal(request))
@@ -1116,8 +1117,6 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
     // if captive portal redirect instead of displaying the page
     return;
   }
-
-  #endif
 
   DEBUG_WM(F("Sending Captive Portal"));
 
@@ -1716,8 +1715,10 @@ void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
     return;
   }
 
-  String message = F("<meta http-equiv=\"refresh\" content=\"1; url=//\">");
-  AsyncWebServerResponse *response = request->beginResponse(404, "text/html", message);
+  //String message = F("<meta http-equiv=\"refresh\" content=\"1; url=//\">");
+  //AsyncWebServerResponse *response = request->beginResponse(404, "text/html", message);
+  AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
+  response->addHeader("Location", String("http://") + toStringIp(request->client()->localIP()) + String("/"));
   response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   response->addHeader("Pragma", "no-cache");
   response->addHeader("Expires", "-1");
@@ -1732,7 +1733,7 @@ boolean AsyncWiFiManager::captivePortal(AsyncWebServerRequest *request)
   {
     DEBUG_WM(F("Request redirected to captive portal"));
     AsyncWebServerResponse *response = request->beginResponse(302, "text/plain", "");
-    response->addHeader("Location", String("http://") + toStringIp(request->client()->localIP()) + String("/wifi"));
+    response->addHeader("Location", String("http://") + toStringIp(request->client()->localIP()) + String("/"));
     request->send(response);
     return true;
   }

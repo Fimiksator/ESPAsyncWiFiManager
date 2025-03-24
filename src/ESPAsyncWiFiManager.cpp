@@ -163,7 +163,6 @@ void AsyncWiFiManager::setupConfigPortal()
 #else
   dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
 #endif
-  dnsServer->setTTL(300);
   if (!dnsServer->start(DNS_PORT, "*", WiFi.softAPIP()))
   {
     DEBUG_WM(F("Could not start Captive DNS Server!"));

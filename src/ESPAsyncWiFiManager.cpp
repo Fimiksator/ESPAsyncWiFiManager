@@ -251,7 +251,7 @@ void wifi_stand_alone_request(AsyncWebServerRequest *request)
 {
     log_i("wifi_stand_alone_request");
     nvs_set_int(NVS_STAND_ALONE, 1);
-    String page = "Search and connect to the network of the machine and open the webinterface: 192.168.10.101";
+    String page = "Search and connect to the network of the machine and open the webinterface: <a href=\"http://4.3.2.1\">4.3.2.1</a>";
     request->send(200, "text/html", page);
     WiFi.mode(WIFI_AP_STA); // cannot erase if not in STA mode !
     log_i("setting AP_STA");
@@ -1151,6 +1151,8 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
 
   DEBUG_WM(F("Handle root"));
 
+  log_i("*WM: Got request for STA %s", request->url().c_str());
+
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Options");
   page += FPSTR(HTTP_SCRIPT);
@@ -1174,6 +1176,8 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
 {
   //shouldscan = true;
   //scannow = 0;
+
+  log_i("*WM: Got request for AP %s", request->url().c_str());
 
   DEBUG_WM(F("Handle wifi"));
 
@@ -1297,13 +1301,15 @@ void AsyncWiFiManager::handleWifi(AsyncWebServerRequest *request, boolean scan)
 // wifi config page handler
 void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean scan)
 {
-  String page = FPSTR(WFM_HTTP_HEAD);
+  String page2 = FPSTR(WFM_HTTP_HEAD);
 
-  page.replace("{v}", "Config ESP");
+  log_i("*WM: Got request for STA %s", request->url().c_str());
 
-  page += FPSTR(HTTP_SCRIPT);
-  page += FPSTR(HTTP_STYLE);
-  page += FPSTR(HTTP_HEAD_END);
+  page2.replace("{v}", "Config ESP");
+
+  page2 += FPSTR(HTTP_SCRIPT);
+  page2 += FPSTR(HTTP_STYLE);
+  page2 += FPSTR(HTTP_HEAD_END);
 
   wifi_ssid_count_t n = WiFi.scanNetworks();
 
@@ -1329,33 +1335,32 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
     DEBUG_WM(F("Scan done"));
   }
 
-
+  String pager2 = "";
   if (n == 0)
   {
     DEBUG_WM(F("No networks found"));
-    page += F("No networks found. Refresh to scan again");
+    page2 += F("No networks found. Refresh to scan again");
   }
   else
   {
-    String pager = "";
     for (int i = 0; i < n; i++)
     {
       String item = FPSTR(HTTP_ITEM);
       item.replace("{v}", WiFi.SSID(i));
       item.replace("{r}", String(getRSSIasQuality(WiFi.RSSI(i))));
       item.replace("{i}", (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : "l");
-      pager += item;
+      pager2 += item;
     }
-    page += pager;
-    page += "<br/>";
+    page2 += pager2;
+    page2 += "<br/>";
   }
 
-  page += FPSTR(HTTP_FORM_START);
-  page += FPSTR(HTTP_FORM_END);
-  page += FPSTR(HTTP_SCAN_LINK);
-  page += FPSTR(HTTP_END);
+  page2 += FPSTR(HTTP_FORM_START);
+  page2 += FPSTR(HTTP_FORM_END);
+  page2 += FPSTR(HTTP_SCAN_LINK);
+  page2 += FPSTR(HTTP_END);
 
-  request->send(200, "text/html", page);
+  request->send_P(200, "text/html", page2.c_str());
 
   DEBUG_WM(F("Sent config page"));
 }
@@ -1364,6 +1369,8 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
 void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
+
+  log_i("*WM: Got request for AP %s", request->url().c_str());
 
   nvs_set_int(NVS_STAND_ALONE, 0);
 
@@ -1454,6 +1461,7 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleWifiSaveSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("WiFi save"));
+  log_i("*WM: Got request for STA %s", request->url().c_str());
 
   nvs_set_int(NVS_STAND_ALONE, 0);
   
@@ -1565,6 +1573,8 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Info"));
 
+  log_i("*WM: Got request for AP %s", request->url().c_str());
+
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
   page += FPSTR(HTTP_SCRIPT);
@@ -1598,6 +1608,7 @@ void AsyncWiFiManager::handleInfo(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleInfoSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Info"));
+  log_i("*WM: Got request for STA %s", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1624,6 +1635,8 @@ void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Reset"));
 
+  log_i("*WM: Got request for AP %s", request->url().c_str());
+
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
   page += FPSTR(HTTP_SCRIPT);
@@ -1648,6 +1661,7 @@ void AsyncWiFiManager::handleReset(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Reset"));
+  log_i("*WM: Got request for STA %s", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Info");
@@ -1672,6 +1686,8 @@ void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
 void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
 {
   DEBUG_WM(F("Stand alone"));
+
+  log_i("*WM: Got request for AP %s", request->url().c_str());
 
   String page = FPSTR(WFM_HTTP_HEAD);
   page.replace("{v}", "Stand alone");

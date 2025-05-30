@@ -298,6 +298,7 @@ boolean AsyncWiFiManager::autoConnect(char const *apName,
   // attempt to connect; should it fail, fall back to AP
   //DEBUG_WM(F("Setting sta mode"));
   log_i("setting AP_STA");
+  WiFi.softAPConfig(_ap_static_ip, _ap_static_gw, _ap_static_sn);
   WiFi.mode(WIFI_AP_STA);
 
   for (unsigned long tryNumber = 0; tryNumber < maxConnectRetries; tryNumber++)

@@ -13,7 +13,6 @@
 
 #include "ESPAsyncWiFiManager.h"
 #include "ArduinoNvs.h"
-#include "../../../../../src/System/EEPROM/eeprom.hpp"
 #include <esp_task_wdt.h> // watchdog
 
 static int save_attempted = 0;
@@ -186,6 +185,7 @@ void AsyncWiFiManager::setupConfigPortal()
   server->on("/api/v2/wifi/reset",
              std::bind(&AsyncWiFiManager::handleReset, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
+  #if CONFIG_STAND_ALONE
   server->on("/api/v2/wifi/stand_alone",
              std::bind(&AsyncWiFiManager::handleStandAlone, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER);
@@ -197,6 +197,7 @@ void AsyncWiFiManager::setupConfigPortal()
   {
       wifi_stand_alone_deactivate_request(request);
   });
+  #endif
   server->on("/fwlink",
              std::bind(&AsyncWiFiManager::handleRoot, this, std::placeholders::_1))
       .setFilter(ON_AP_FILTER); // Microsoft captive portal. Maybe not needed. Might be handled by notFound handler.
@@ -355,8 +356,10 @@ void AsyncWiFiManager::setupApiCalls()
              std::bind(&AsyncWiFiManager::handleInfoSTA, this, std::placeholders::_1));
   server->on("/api/v2/wifi/reset",
              std::bind(&AsyncWiFiManager::handleResetSTA, this, std::placeholders::_1));
+#if CONFIG_STAND_ALONE
   server->on("/api/v2/wifi/stand_alone",
              std::bind(&AsyncWiFiManager::handleStandAloneSTA, this, std::placeholders::_1));
+#endif
 }
 
 String AsyncWiFiManager::networkListAsString()
@@ -1132,8 +1135,10 @@ void AsyncWiFiManager::handleRoot(AsyncWebServerRequest *request)
   page += "</h1>";
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS);
+  #if CONFIG_STAND_ALONE
   page += nvs_get_int(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
   page += FPSTR(HTTP_PORTAL_OPTIONS2);
+  #endif
   page += _customOptionsElement;
   page += FPSTR(HTTP_END);
 
@@ -1161,8 +1166,10 @@ void AsyncWiFiManager::handleRootSTA(AsyncWebServerRequest *request)
   page += FPSTR(HTTP_HEAD_END);
   page += F("<h3><center>Xenia WiFi Manager</center></h3>");
   page += FPSTR(HTTP_PORTAL_OPTIONS_STA);
+  #if CONFIG_STAND_ALONE
   page += nvs_get_int(NVS_STAND_ALONE) ? "<p style=\"color:green;\">ACTIVATED</p>" : "<p style=\"color:red;\">DEACTIVATED</p>";
   page += FPSTR(HTTP_PORTAL_OPTIONS2);
+  #endif
   page += FPSTR(HTTP_END);
 
   AsyncWebServerResponse *response = request->beginResponse(200, "text/html", page);
@@ -1683,6 +1690,7 @@ void AsyncWiFiManager::handleResetSTA(AsyncWebServerRequest *request)
   delay(200);
 }
 
+#if CONFIG_STAND_ALONE
 // handle the stand alone page
 void AsyncWiFiManager::handleStandAlone(AsyncWebServerRequest *request)
 {
@@ -1721,6 +1729,7 @@ void AsyncWiFiManager::handleStandAloneSTA(AsyncWebServerRequest *request)
 
   DEBUG_WM(F("Sent stand alone page"));
 }
+#endif
 
 void AsyncWiFiManager::handleNotFound(AsyncWebServerRequest *request)
 {

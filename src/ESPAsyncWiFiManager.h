@@ -22,6 +22,7 @@
 #define ESP_WPS_MODE WPS_TYPE_PBC
 #endif
 #include <ESPAsyncWebServer.h>
+#include "../../../../../src/System/EEPROM/eeprom.hpp"
 
 //#define USE_EADNS               // uncomment to use ESPAsyncDNSServer
 #ifdef USE_EADNS
@@ -48,22 +49,144 @@ extern "C"
 #include <rom/rtc.h>
 #endif
 
-const char WFM_HTTP_HEAD[] PROGMEM = "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/><title>{v}</title>";
-const char HTTP_STYLE[] PROGMEM = "<style>.c{text-align: center;} div,input{padding:5px;font-size:1em;} input{width:95%;} body{text-align: center;font-family:verdana;} button{border:0;border-radius:0.3rem;background-color:#1fa3ec;color:#fff;line-height:2.4rem;font-size:1.2rem;width:100%;} .q{float: right;width: 64px;text-align: right;} .l{background: url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==\") no-repeat left center;background-size: 1em;}</style>";
-const char HTTP_SCRIPT[] PROGMEM = "<script>function c(l){document.getElementById('s').value=l.innerText||l.textContent;document.getElementById('p').focus();}</script>";
-const char HTTP_HEAD_END[] PROGMEM = "</head><body><div style='text-align:left;display:inline-block;min-width:260px;'>";
-const char HTTP_PORTAL_OPTIONS[] PROGMEM = "<form action=\"/api/v2/wifi/scan\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/api/v2/wifi/info\" method=\"get\"><button>Info</button></form><br/><form action=\"/api/v2/wifi/reset\" method=\"post\"><button>Reset</button></form><br/><form action=\"/api/v2/wifi/stand_alone\" method=\"get\"><button>Stand alone mode</button></form><br/><form action=\"/\" method=\"post\"><button>Xenia home</button></form><h3><center>Stand alone mode: ";
-const char HTTP_PORTAL_OPTIONS_STA[] PROGMEM = "<form action=\"/api/v2/wifi/scan\" method=\"get\"><button>Configure WiFi</button></form><br/><form action=\"/api/v2/wifi/info\" method=\"get\"><button>Info</button></form><br/><form action=\"/api/v2/wifi/reset\" method=\"post\"><button>Reset</button></form><br/><form action=\"/api/v2/wifi/stand_alone\" method=\"get\"><button>Stand alone mode</button></form><br/><form action=\"/\" method=\"post\"><button>Xenia home</button></form><h3><center>Stand alone mode: ";
-const char HTTP_PORTAL_OPTIONS2[] PROGMEM = "</center></h3>";
-const char HTTP_STAND_ALONE_OPTIONS[] PROGMEM = "<form action=\"/api/v2/wifi/stand_alone_yes\" method=\"get\"><button>Activate</button></form><br/><form action=\"/api/v2/wifi/stand_alone_no\" method=\"get\"><button>Deactivate</button></form>";
-const char HTTP_STAND_ALONE_OPTIONS_STA[] PROGMEM = "<form action=\"/api/v2/wifi/stand_alone_yes\" method=\"get\"><button>Activate</button></form><br/><form action=\"/api/v2/wifi/stand_alone_no\" method=\"get\"><button>Deactivate</button></form>";
-const char HTTP_ITEM[] PROGMEM = "<div><a href='#p' onclick='c(this)'>{v}</a>&nbsp;<span class='q {i}'>{r}%</span></div>";
-const char HTTP_FORM_START[] PROGMEM = "<form method='get' action='/api/v2/wifi/save'><input id='s' name='s' length=32 placeholder='SSID'><br/><input id='p' name='p' length=64 type='password' placeholder='password'><br/>";
-const char HTTP_FORM_PARAM[] PROGMEM = "<br/><input id='{i}' name='{n}' length={l} placeholder='{p}' value='{v}' {c}>";
-const char HTTP_FORM_END[] PROGMEM = "<br/><button type='submit'>save</button></form>";
-const char HTTP_SCAN_LINK[] PROGMEM = "<br/><div class=\"c\"><a href=\"/api/v2/wifi/scan\">Scan</a></div>";
-const char HTTP_SAVED[] PROGMEM = "<div>Credentials Saved<br />Trying to connect ESP to network.<br />If it fails reconnect to AP to try again.<br /><br />If device connects successfully it will respond with it's new IP address.</div>";
-const char HTTP_END[] PROGMEM = "</div></body></html>";
+const char WFM_HTTP_HEAD[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+  <title>{v}</title>
+)rawliteral";
+
+const char HTTP_STYLE[] PROGMEM = R"rawliteral(
+<style>
+  .c { text-align: center; }
+  div, input { padding: 5px; font-size: 1em; }
+  input { width: 95%; }
+  body { text-align: center; font-family: verdana; }
+  button {
+    border: 0;
+    border-radius: 0.3rem;
+    background-color: #1fa3ec;
+    color: #fff;
+    line-height: 2.4rem;
+    font-size: 1.2rem;
+    width: 100%;
+  }
+  .q {
+    float: right;
+    width: 64px;
+    text-align: right;
+  }
+  .l {
+    background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAALVBMVEX///8EBwfBwsLw8PAzNjaCg4NTVVUjJiZDRUUUFxdiZGSho6OSk5Pg4eFydHTCjaf3AAAAZElEQVQ4je2NSw7AIAhEBamKn97/uMXEGBvozkWb9C2Zx4xzWykBhFAeYp9gkLyZE0zIMno9n4g19hmdY39scwqVkOXaxph0ZCXQcqxSpgQpONa59wkRDOL93eAXvimwlbPbwwVAegLS1HGfZAAAAABJRU5ErkJggg==") 
+    no-repeat left center;
+    background-size: 1em;
+  }
+</style>
+)rawliteral";
+
+const char HTTP_SCRIPT[] PROGMEM = R"rawliteral(
+<script>
+  function c(l) {
+    document.getElementById('s').value = l.innerText || l.textContent;
+    document.getElementById('p').focus();
+  }
+</script>
+)rawliteral";
+
+const char HTTP_HEAD_END[] PROGMEM = R"rawliteral(
+</head>
+<body>
+  <div style='text-align:left;display:inline-block;min-width:260px;'>
+)rawliteral";
+
+#if CONFIG_STAND_ALONE
+const char HTTP_PORTAL_OPTIONS[] PROGMEM = R"rawliteral(
+<form action="/api/v2/wifi/scan" method="get"><button>Configure WiFi</button></form><br/>
+<form action="/api/v2/wifi/info" method="get"><button>Info</button></form><br/>
+<form action="/api/v2/wifi/reset" method="post"><button>Reset</button></form><br/>
+<form action="/api/v2/wifi/stand_alone" method="get"><button>Stand alone mode</button></form><br/>
+<form action="/" method="post"><button>Xenia home</button></form>
+<h3><center>Stand alone mode: 
+)rawliteral";
+
+const char HTTP_PORTAL_OPTIONS_STA[] PROGMEM = R"rawliteral(
+<form action="/api/v2/wifi/scan" method="get"><button>Configure WiFi</button></form><br/>
+<form action="/api/v2/wifi/info" method="get"><button>Info</button></form><br/>
+<form action="/api/v2/wifi/reset" method="post"><button>Reset</button></form><br/>
+<form action="/api/v2/wifi/stand_alone" method="get"><button>Stand alone mode</button></form><br/>
+<form action="/" method="post"><button>Xenia home</button></form>
+<h3><center>Stand alone mode: 
+)rawliteral";
+
+const char HTTP_STAND_ALONE_OPTIONS[] PROGMEM = R"rawliteral(
+<form action="/api/v2/wifi/stand_alone_yes" method="get"><button>Activate</button></form><br/>
+<form action="/api/v2/wifi/stand_alone_no" method="get"><button>Deactivate</button></form>
+)rawliteral";
+
+const char HTTP_STAND_ALONE_OPTIONS_STA[] PROGMEM = R"rawliteral(
+<form action="/api/v2/wifi/stand_alone_yes" method="get"><button>Activate</button></form><br/>
+<form action="/api/v2/wifi/stand_alone_no" method="get"><button>Deactivate</button></form>
+)rawliteral";
+
+const char HTTP_PORTAL_OPTIONS2[] PROGMEM = R"rawliteral(
+</center></h3>
+)rawliteral";
+#else
+const char HTTP_PORTAL_OPTIONS[] PROGMEM = R"rawliteral(
+<form action="/api/v2/wifi/scan" method="get"><button>Configure WiFi</button></form><br/>
+<form action="/api/v2/wifi/info" method="get"><button>Info</button></form><br/>
+<form action="/api/v2/wifi/reset" method="post"><button>Reset</button></form><br/>
+<form action="/" method="post"><button>Xenia home</button></form>
+)rawliteral";
+
+const char HTTP_PORTAL_OPTIONS_STA[] PROGMEM = R"rawliteral(
+<form action="/api/v2/wifi/scan" method="get"><button>Configure WiFi</button></form><br/>
+<form action="/api/v2/wifi/info" method="get"><button>Info</button></form><br/>
+<form action="/api/v2/wifi/reset" method="post"><button>Reset</button></form><br/>
+<form action="/" method="post"><button>Xenia home</button></form>
+)rawliteral";
+#endif
+
+const char HTTP_ITEM[] PROGMEM = R"rawliteral(
+<div>
+  <a href='#p' onclick='c(this)'>{v}</a>&nbsp;
+  <span class='q {i}'>{r}%</span>
+</div>
+)rawliteral";
+
+const char HTTP_FORM_START[] PROGMEM = R"rawliteral(
+<form method='get' action='/api/v2/wifi/save'>
+  <input id='s' name='s' length=32 placeholder='SSID'><br/>
+  <input id='p' name='p' length=64 type='password' placeholder='password'><br/>
+)rawliteral";
+
+const char HTTP_FORM_PARAM[] PROGMEM = R"rawliteral(
+<br/><input id='{i}' name='{n}' length={l} placeholder='{p}' value='{v}' {c}>
+)rawliteral";
+
+const char HTTP_FORM_END[] PROGMEM = R"rawliteral(
+<br/><button type='submit'>save</button></form>
+)rawliteral";
+
+const char HTTP_SCAN_LINK[] PROGMEM = R"rawliteral(
+<br/><div class="c"><a href="/api/v2/wifi/scan">Scan</a></div>
+)rawliteral";
+
+const char HTTP_SAVED[] PROGMEM = R"rawliteral(
+<div>
+  Credentials Saved<br />
+  Trying to connect ESP to network.<br />
+  If it fails reconnect to AP to try again.<br /><br />
+  If device connects successfully it will respond with it's new IP address.
+</div>
+)rawliteral";
+
+const char HTTP_END[] PROGMEM = R"rawliteral(
+</div>
+</body>
+</html>
+)rawliteral";
 
 #define WIFI_MANAGER_MAX_PARAMS 10
 
@@ -285,8 +408,10 @@ private:
   void handleInfoSTA(AsyncWebServerRequest *);
   void handleReset(AsyncWebServerRequest *);
   void handleResetSTA(AsyncWebServerRequest *);
+  #if CONFIG_STAND_ALONE
   void handleStandAlone(AsyncWebServerRequest *);
   void handleStandAloneSTA(AsyncWebServerRequest *);
+  #endif
   void handleNotFound(AsyncWebServerRequest *);
   boolean captivePortal(AsyncWebServerRequest *);
 

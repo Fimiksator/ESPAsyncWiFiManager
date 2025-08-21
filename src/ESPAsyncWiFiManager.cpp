@@ -1351,13 +1351,20 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
   }
   else
   {
+    std::vector<String> uniqueList;
+
     for (int i = 0; i < n; i++)
     {
-      String item = FPSTR(HTTP_ITEM);
-      item.replace("{v}", WiFi.SSID(i));
-      item.replace("{r}", String(getRSSIasQuality(WiFi.RSSI(i))));
-      item.replace("{i}", (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : "l");
-      pager2 += item;
+      if (std::find(uniqueList.begin(), uniqueList.end(), WiFi.SSID(i)) == uniqueList.end())
+      {
+          uniqueList.push_back(WiFi.SSID(i));
+          
+          String item = FPSTR(HTTP_ITEM);
+          item.replace("{v}", WiFi.SSID(i));
+          item.replace("{r}", String(getRSSIasQuality(WiFi.RSSI(i))));
+          item.replace("{i}", (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : "l");
+          pager2 += item;
+      }
     }
     page2 += pager2;
     page2 += "<br/>";

@@ -23,6 +23,7 @@
 #endif
 #include <ESPAsyncWebServer.h>
 #include "../../../../../src/System/EEPROM/eeprom.hpp"
+#include <esp_wifi.h>
 
 //#define USE_EADNS               // uncomment to use ESPAsyncDNSServer
 #ifdef USE_EADNS
@@ -436,6 +437,7 @@ private:
   std::function<void()> _savecallback;
 
   AsyncWiFiManagerParameter *_params[WIFI_MANAGER_MAX_PARAMS];
+  int indexWanted = -1;
 
   template <typename Generic>
   void DEBUG_WM(Generic text);

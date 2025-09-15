@@ -883,7 +883,16 @@ uint8_t AsyncWiFiManager::connectWifi(String ssid, String pass)
 #else
     WiFi.disconnect(false);
 #endif
-    WiFi.begin(ssid.c_str(), pass.c_str());
+    if (indexWanted != -1)
+    {
+      WiFi.begin(ssid.c_str(), pass.c_str());
+      //WiFi.begin(ssid.c_str(), pass.c_str(), wifiSSIDs[indexWanted].channel, wifiSSIDs[indexWanted].BSSID, true);
+      indexWanted = -1;
+    }
+    else
+    {
+      WiFi.begin(ssid.c_str(), pass.c_str());
+    }
   }
   else
   {
@@ -1355,16 +1364,16 @@ void AsyncWiFiManager::handleWifiSTA(AsyncWebServerRequest *request, boolean sca
 
     for (int i = 0; i < n; i++)
     {
-      if (std::find(uniqueList.begin(), uniqueList.end(), WiFi.SSID(i)) == uniqueList.end())
-      {
-          uniqueList.push_back(WiFi.SSID(i));
+      //if (std::find(uniqueList.begin(), uniqueList.end(), WiFi.SSID(i)) == uniqueList.end())
+      //{
+      //    uniqueList.push_back(WiFi.SSID(i));
           
           String item = FPSTR(HTTP_ITEM);
           item.replace("{v}", WiFi.SSID(i));
           item.replace("{r}", String(getRSSIasQuality(WiFi.RSSI(i))));
           item.replace("{i}", (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? "" : "l");
           pager2 += item;
-      }
+      //}
     }
     page2 += pager2;
     page2 += "<br/>";
@@ -1392,6 +1401,43 @@ void AsyncWiFiManager::handleWifiSave(AsyncWebServerRequest *request)
   time_now = millis();
   ap_on = false;
   border = 20000;
+
+  String wantedSSid = request->arg("s").c_str();
+
+  if (wifiSSIDCount > 0)
+  {
+    uint8_t index = 0;
+    unsigned int max_quality = 0;
+
+    for (int i = 0; i < wifiSSIDCount; i++)
+    {
+      if (wantedSSid == wifiSSIDs[i].SSID)
+      {
+        char mac[18] = { 0 };
+        sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", wifiSSIDs[i].BSSID[0], wifiSSIDs[i].BSSID[1], wifiSSIDs[i].BSSID[2], wifiSSIDs[i].BSSID[3], wifiSSIDs[i].BSSID[4], wifiSSIDs[i].BSSID[5]);
+        unsigned int quality = getRSSIasQuality(wifiSSIDs[i].RSSI);
+        log_i("Found it, it is %s - bssid %s - rssi %d", wifiSSIDs[i].SSID.c_str(), mac, quality);
+
+        if (quality > max_quality)
+        {
+          max_quality = quality;
+          index = i;
+        }
+      }
+    }
+
+    if (max_quality > 0)
+    {
+      indexWanted = index;
+      char mac[18] = { 0 };
+      sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", wifiSSIDs[index].BSSID[0], wifiSSIDs[index].BSSID[1], wifiSSIDs[index].BSSID[2], wifiSSIDs[index].BSSID[3], wifiSSIDs[index].BSSID[4], wifiSSIDs[index].BSSID[5]);
+      log_i("Max quality %d with BSSID %s, setting it....", max_quality, mac);
+    }
+  }
+  else
+  {
+    log_i("no count");
+  }
 
   // SAVE/connect here
   needInfo = true;
@@ -1562,6 +1608,9 @@ String AsyncWiFiManager::infoAsString()
   page += F("</dd>");
   page += F("<dt>Station MAC</dt><dd>");
   page += WiFi.macAddress();
+  page += F("</dd>");
+  page += F("<dt>Station BSSID</dt><dd>");
+  page += WiFi.BSSIDstr();
   page += F("</dd>");
   page += F("</dl>");   
   if (save_attempted)
